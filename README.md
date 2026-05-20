@@ -1,83 +1,442 @@
+# Unit Converter (Python)
 
-## Unit Converter (Python)
+**meter 기준 길이 단위 변환 CLI**를 계약·pytest·BCE 레이어로 검증하며, **Python·TDD·클린 아키텍처 학습자**가 OCP/SRP와 테스트 선행 리팩터링을 체득하기 위한 실습 프로젝트입니다.
+
 ![unit-converter](./unit-converter.jpg)
-### Overview
-- 사용자가 입력한 길이(`단위:값`)를 기반으로, 해당 값을 다른 모든 단위로 변환해 출력하는 프로그램.
-- 새로운 단위를 추가할 때 기존 코드의 변경이 최소화되도록 설계한다.
-- 각 단위 변환 로직은 테스트 코드로 검증한다.
 
-### 가상환경 설정 및 실행
+---
+
+## 목차
+
+- [개요 (Overview)](#개요-overview)
+- [빠른 시작 (Quick Start)](#빠른-시작-quick-start)
+- [지원 단위 및 비율](#지원-단위-및-비율)
+- [입력 형식 계약](#입력-형식-계약)
+- [아키텍처](#아키텍처)
+- [테스트 실행](#테스트-실행)
+- [설정 파일 (JSON/YAML)](#설정-파일-jsonyaml)
+- [출력 포맷](#출력-포맷)
+- [기여 가이드 (Contributing)](#기여-가이드-contributing)
+- [라이선스](#라이선스)
+- [관련 문서](#관련-문서)
+
+---
+
+## 개요 (Overview)
+
+### 이 프로젝트가 해결하는 문제
+
+- `단위:값` 한 줄 입력으로 등록된 길이 단위를 **상호 변환**해 출력한다.
+- 레거시 스크립트는 비율이 코드 분기에 박혀 있어 **단위 추가·회귀 검증**이 어렵다.
+- 본 프로젝트는 “곱셈 공식”보다 **계약(입력·stderr·출력)·불변식·테스트**를 먼저 고정하고, AI 보조 구현 환경에서도 행위가 흔들리지 않게 한다.
+
+### 주요 학습 목표
+
+| 목표 | 내용 |
+|------|------|
+| **OCP** | 신규 단위는 Registry·설정으로 추가; 환산 엔진 공개 API는 유지 |
+| **SRP** | 환산(entity)·유스케이스(control)·파싱·포맷(boundary)·설정(data) 분리 |
+| **BCE** | boundary → control → entity 의존; entity는 I/O·포맷 무의존 |
+| **TDD** | RED(실패 테스트) → GREEN(최소 구현) → REFACTOR(green 유지) |
+
+### PRD와의 연결
+
+요구·인수·회귀 규칙의 **단일 기준(Source of Truth)** 은 [doc/PRD.md](doc/PRD.md)이며, 작업 진행은 [doc/TODO.md](doc/TODO.md)를 따릅니다.
+
+> **구현 상태:** v1.0 인수 진행 중. 루트 `UnitConverter.py`는 **레거시 프로토타입**(PRD 인수 미달). 목표 구조는 아래 [아키텍처](#아키텍처) 참고.
+
+---
+
+## 빠른 시작 (Quick Start)
+
+### 사전 조건
+
+| 항목 | 요구 |
+|------|------|
+| Python | **3.11+** |
+| 패키지 관리 | `venv` 권장 |
+| 테스트 (목표) | `pytest`, `pytest-cov` |
+| 검증 (목표) | `pydantic` |
+
+### 가상환경 · 실행 (레거시)
+
+현재 저장소에는 레거시 진입점만 있습니다.
+
 ```bash
 # 가상환경 생성
 python -m venv venv
 
-# 가상환경 활성화 (Windows)
+# 활성화 (Windows)
 venv\Scripts\activate
 
-# 가상환경 활성화 (macOS/Linux)
+# 활성화 (macOS/Linux)
 source venv/bin/activate
 
-# 실행
+# 실행 (레거시)
 python UnitConverter.py
-
-# 가상환경 비활성화
-deactivate
 ```
 
-### 기본 요구사항
-1. 사용자 입력 예시:
-   ```
-   meter:2.5
-   ```
-   → 출력:
-   ```
-   2.5 meter = 8.2 feet
-   2.5 meter = 2.7 yard
-   ...
-   ```
+프롬프트에 `Insert value for converting (ex: meter:2.5):` 가 나오면 입력합니다.
 
-2. 현재 지원 단위:
-   - meter
-   - feet
-   - yard
+### 예시 입출력 (목표 계약 · table)
 
-3. 새로운 단위가 추가될 때도 기존 코드의 변경이 최소화되도록 할 것.
+**입력**
 
-4. 각 단위 간 변환이 정확히 계산되도록 테스트 코드를 작성할 것.
+```text
+meter:5.0
+```
 
-### 비즈니스 로직
-- `1 meter = 3.28084 feet`
-- `1 meter = 1.09361 yard`
-- feet/yard 간의 비율은 meter 기반으로 계산.
+**stdout (목표 · PRD §6.1, 표시 1자리 half-up)**
 
-### 품질 요구사항
-- OCP를 만족하는 설계
-- SRP를 만족하는 클래스 구성
-- 입력 값 검증 (음수, 잘못된 형식, 없는 단위)
+```text
+5.0 meter = 16.4 feet
+5.0 meter = 5.5 yard
+5.0 meter = 5.0 meter
+```
 
-### 추가 요구사항
-- **설정 외부화**
-   - 변환 비율을 외부 설정 파일(JSON/YAML)에서 로드
-- **동적으로 단위와 비율을 등록할 수 있도록 한다**
-   - 사용자 입력으로 `1 cubit = 0.4572 meter`를 등록하고 사용 가능
-- **출력 포맷 선택 기능** 
-   - JSON / CSV / 표 형태 출력
+| 항목 | 값 |
+|------|-----|
+| Domain raw (검증용) | feet ≈ 16.4042, yard ≈ 5.46805 |
+| 줄 수 | 등록 단위 수 (기본 3) |
+| exit code | `0` |
 
+**표현 계약:** 모든 줄의 왼쪽 `{amount} {unit}` 은 **사용자 입력과 동일**합니다.
 
-## 생성형AI를 활용한 Activities (6 시간)
+### 목표 진입점 (v1.0 이후)
 
-1. 문제 코드 및 기본 요구사항 분석 (0.5시간)
-   - 기본 코드구조, 로직 이해
-2. 기본 요구사항 및 품질 요구사항 구현 (2시간)
-   - OCP를 만족하는 인터페이스 구현 
-   - SRP를 만족하도록 클래스 구현 
-   - 입력값 검증을 위한 구현
-3. TC 구현 (0.5시간)
-   - 단위변환 기능 검증 및 입력 값 검증 TC 작성 
-4. 추가 요구사항 구현 (2시간)
-   - 3개 요구사항 구현 및 TC 작성 
-5. 회고 및 발표 (1시간)
-   - 실습 목표와 달성도
-   - AI를 어떻게 활용했나? 도움이 된 순간과 한계는?
-   - TC를 추가해보면서 개선에 미친 영향, TC 작성 팁
-   - 클린코드와 리팩토링에서 느낀 장점과 어려운점
+```bash
+# 목표 구조 (구현 후)
+python -m boundary.main
+# 또는
+python boundary/main.py
+```
+
+---
+
+## 지원 단위 및 비율
+
+**기준 단위(hub):** `meter` — 모든 환산은 `meters_per_unit` 으로만 유도합니다.  
+**feet ↔ yard 직접 비율 상수 사용 금지.**
+
+| 표시명 | 식별자 (`unit_id`) | meters_per_unit (1 unit = X meter) | 출처 |
+|--------|-------------------|-------------------------------------|------|
+| meter | `meter` | `1.0` | PRD §5.1 · 기준 |
+| feet | `feet` | `3.28084` | README · `1 m = 3.28084 ft` |
+| yard | `yard` | `1.09361` | README · `1 m = 1.09361 yd` |
+
+**동적 등록(권장):** 런타임에 `register:cubit=0.4572:meter` 등으로 추가.  
+**부동소수 동등(EPS):** `|a−b| ≤ max(1e-9, 1e-9 × max(|a|,|b|))`
+
+---
+
+## 입력 형식 계약
+
+### 명령 종류
+
+| 명령 | 패턴 | 우선순위 |
+|------|------|----------|
+| CONVERT | `{unit_id}:{amount}` | 필수 |
+| REGISTER | `register:{new}={ratio}:{ref_unit}` | 권장 |
+| SET_FORMAT | `format:table` \| `format:json` \| `format:csv` | 권장 |
+
+- `unit_id`: `[a-z][a-z0-9_]{0,31}`
+- `amount`: 유한 실수, **`>= 0`** (정책 **NEG-01**)
+- 입력 한 줄 최대 **256자**
+
+### 정상 예시 3개
+
+| 입력 | 의미 |
+|------|------|
+| `meter:2.5` | 2.5 meter를 모든 등록 단위로 변환 |
+| `feet:3.28084` | 3.28084 feet → meter ≈ 1.0 (표현 계약: LHS `3.28084 feet`) |
+| `register:cubit=0.4572:meter` | 1 cubit = 0.4572 meter 등록 (권장) |
+
+### 비정상 예시 3개 + 에러
+
+| 입력 | `code` | exit | stderr message 패턴 |
+|------|--------|------|---------------------|
+| `meter` (콜론 없음) | `MALFORMED_INPUT` | 1 | `Invalid format. Use unit:value (ex: meter:2.5)` |
+| `meter:2.5.3` | `NON_NUMERIC` | 1 | `Invalid number: 2.5.3` |
+| `meter:-1` | `NEGATIVE_VALUE` | 1 | `Value must be non-negative: -1` |
+
+**실패 공통:** stdout에 `{source} = {target}` 형태 변환 줄 **0줄**.
+
+### 기타 error code (참고)
+
+| 조건 | `code` | exit |
+|------|--------|------|
+| 미등록 단위 `cubit:1` | `UNKNOWN_UNIT` | 1 |
+| 257자 이상 | `INPUT_TOO_LONG` | 1 |
+| `Meter` (대문자) | `INVALID_UNIT_ID` | 1 |
+| NaN / Inf | `NON_FINITE_VALUE` | 1 |
+| 설정 파일 오류 (기동) | `CONFIG_LOAD_FAILED` / `SCHEMA_INVALID` | 2 |
+| `format:xml` | `UNSUPPORTED_FORMAT` | 1 |
+
+상세: [doc/PRD.md §3.2](doc/PRD.md)
+
+---
+
+## 아키텍처
+
+### BCE 레이어 (목표 구조)
+
+```mermaid
+flowchart TB
+    subgraph boundary["boundary"]
+        CLI[CliInputParser]
+        FMT[OutputFormatter]
+        ERR[ErrorPresenter]
+    end
+    subgraph control["control"]
+        UC[ConvertUseCase / RegisterUseCase]
+    end
+    subgraph entity["entity"]
+        REG[UnitRegistry]
+        ENG[ConversionEngine]
+    end
+    subgraph data["data"]
+        REPO[UnitRatioRepository]
+    end
+    CLI --> UC
+    UC --> REG
+    UC --> ENG
+    UC --> REPO
+    FMT --> CLI
+    ERR --> CLI
+    REPO -.->|implements Port| entity
+```
+
+### 의존성 방향
+
+| 허용 | 금지 |
+|------|------|
+| boundary → control | entity → boundary |
+| control → entity | entity → data 구현체 |
+| control → data (Port) | control → boundary |
+
+### 새 단위 추가 (코드 최소화)
+
+1. **설정:** `config/units.json` 의 `units[]` 에 `{ "id": "...", "meters_per_unit": ... }` 추가  
+2. **또는 런타임:** `register:new_unit=ratio:ref_unit` 입력  
+3. **검증:** `pytest tests/entity/` — 기존 환산 TC는 수정 없이 pass  
+4. **금지:** `ConversionEngine` 에 `if unit == "new":` 분기 추가  
+
+환산식 (단일 경로):
+
+```text
+target_amount = source_amount × MetersPerUnit(source) ÷ MetersPerUnit(target)
+```
+
+### 디렉터리 (목표)
+
+```text
+entity/      # Domain — I/O 금지
+control/     # UseCase
+boundary/    # CLI · 파싱 · 포맷 · stderr
+data/        # JSON 설정 Repository
+tests/       # pytest (entity / boundary / data / integration)
+config/      # units.json
+```
+
+---
+
+## 테스트 실행
+
+### 프레임워크
+
+- **pytest** + **pytest-cov**
+
+### 명령 (목표 구조)
+
+```bash
+# 전체 테스트
+python -m pytest tests/ -v
+
+# Domain만
+python -m pytest tests/entity/ -v
+
+# 커버리지 (PRD §4.3)
+python -m pytest tests/ \
+  --cov=entity --cov=control --cov=boundary --cov=data \
+  --cov-report=term-missing \
+  --cov-fail-under=85
+```
+
+### 커버리지 목표
+
+| 레이어 | Line % | Branch % |
+|--------|--------|----------|
+| entity | ≥ 95 | ≥ 90 |
+| control | ≥ 90 | ≥ 85 |
+| boundary | ≥ 85 | ≥ 80 |
+| data | ≥ 90 | ≥ 85 |
+| **overall** | ≥ 85 | — |
+
+### 인수 · BDD
+
+- **Gherkin:** 8 scenarios (PRD 부록 B) — happy path, 형식 오류, NON_NUMERIC, 음수, unknown unit, 표현 계약, zero, meter 경유  
+- **체크리스트:** [doc/TODO.md](doc/TODO.md) §회귀 방지
+
+---
+
+## 설정 파일 (JSON/YAML)
+
+### 위치 · 형식 (JSON 권장)
+
+**경로:** `config/units.json`
+
+```json
+{
+  "schema_version": 1,
+  "base_unit": "meter",
+  "units": [
+    { "id": "meter", "meters_per_unit": 1.0 },
+    { "id": "feet", "meters_per_unit": 3.28084 },
+    { "id": "yard", "meters_per_unit": 1.09361 }
+  ]
+}
+```
+
+| 규칙 | 실패 시 |
+|------|---------|
+| `schema_version` must be `1` | `SCHEMA_INVALID` |
+| `meter` 행 필수, 비율 > 0 | `SCHEMA_INVALID` |
+| 파일 없음 / JSON 깨짐 | `FILE_NOT_FOUND` / `PARSE_ERROR` / `CONFIG_LOAD_FAILED` |
+
+기동 실패 시 **exit 2**, 변환 수행 없음.
+
+**YAML:** 선택(v2). 스키마 의미는 JSON와 동일.
+
+### 동적 단위 등록 (런타임)
+
+```text
+register:cubit=0.4572:meter
+```
+
+| 항목 | 값 |
+|------|-----|
+| 의미 | 1 cubit = 0.4572 meter |
+| 검증 예 | `cubit:10` → meter amount ≈ **4.572** (EPS 내) |
+| 등록 전 | `cubit:1` → `UNKNOWN_UNIT` |
+
+---
+
+## 출력 포맷
+
+기본: **table** (`format:table` 또는 미지정)
+
+### 콘솔 (table) — PRD §6.1
+
+```text
+{source_amount} {source_unit} = {target_amount} {target_unit}
+```
+
+- **target:** 소수 1자리, half-up  
+- **source:** 입력 amount·unit 그대로 (표현 계약)
+
+### JSON — PRD §6.2 (권장)
+
+```json
+{
+  "command": "CONVERT",
+  "source": { "unit": "meter", "amount": 5.0 },
+  "results": [
+    { "unit": "feet", "amount": 16.4042 },
+    { "unit": "yard", "amount": 5.4681 },
+    { "unit": "meter", "amount": 5.0 }
+  ]
+}
+```
+
+- `results[].amount`: **4자리** half-up  
+- `results` 길이 = 등록 단위 수
+
+### CSV — PRD §6.3 (권장)
+
+```csv
+source_unit,source_amount,target_unit,target_amount
+meter,5.0,feet,16.4042
+meter,5.0,yard,5.4681
+meter,5.0,meter,5.0
+```
+
+- 헤더 1행 + 데이터 행 수 = 등록 단위 수  
+- `source_unit`, `source_amount` 는 모든 데이터 행에서 동일
+
+### 포맷 정합
+
+동일 CONVERT 입력에 대해 table · json · csv 의 **(target_unit → amount) 집합은 동일** (포맷별 반올림 자릿수만 다름).
+
+---
+
+## 기여 가이드 (Contributing)
+
+### 계약 변경 금지
+
+- [doc/PRD.md](doc/PRD.md) §3.2·§3.3·§6·§7.1 과 **모순되는** 입출력·비율·error code·stderr 패턴 변경은 **별도 RFC + 테스트 일괄 갱신** 없이 merge 하지 않습니다.
+- 테스트를 통과시키기 위해 **assert·기대값·error code만 완화**하는 PR은 거부합니다 (PRD REG-05).
+
+### 테스트 없는 PR
+
+- 신규 동작·버그 수정 PR은 **대응 pytest**(또는 Gherkin) **필수**.
+- Domain 변경은 `tests/entity/`; 파싱·포맷은 `tests/boundary/`; 설정은 `tests/data/`.
+
+### RED → GREEN → REFACTOR
+
+1. 실패하는 테스트 추가 (RED)  
+2. 최소 구현으로 해당 테스트만 green  
+3. 전체 관련 pytest green 유지하며 refactor  
+
+### 커밋 메시지 컨벤션
+
+```text
+<type>: <scope> — <summary>
+
+type: feat | fix | test | refactor | docs
+scope: entity | control | boundary | data | config
+```
+
+예:
+
+```text
+test: entity — add roundtrip feet to meters invariant
+feat: boundary — map NEGATIVE_VALUE to stderr contract
+docs: readme — align error codes with PRD 3.2
+```
+
+### 회귀 확인 (merge 전)
+
+- [ ] `pytest` 0 fail  
+- [ ] cov 임계 충족 (§4.3)  
+- [ ] Gherkin 8/8 (또는 동등 체크리스트)  
+- [ ] [doc/TODO.md](doc/TODO.md) 회귀 § REG-01~06  
+
+---
+
+## 라이선스
+
+**MIT License** — 학습·실습용.
+
+---
+
+## 관련 문서
+
+| 문서 | 설명 |
+|------|------|
+| [doc/PRD.md](doc/PRD.md) | 요구·계약·인수·회귀 (Source of Truth) |
+| [doc/TODO.md](doc/TODO.md) | v1.0 작업·마일스톤·회귀 체크리스트 |
+| [doc/README_ref.md](doc/README_ref.md) | 초기 README 보존본 |
+
+---
+
+## 생성형 AI 활용 Activities (6시간)
+
+| 단계 | 시간 | 내용 |
+|------|------|------|
+| 1 | 0.5h | 레거시·PRD·계약 분석 |
+| 2 | 2h | 필수 요구·OCP/SRP·입력 검증 (M-01~M-11) |
+| 3 | 0.5h | 환산·검증 TC |
+| 4 | 2h | 설정·등록·포맷 (S-01~S-08) |
+| 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) |
+
+진행 상황: [doc/TODO.md](doc/TODO.md) 🔴 필수 항목 체크.
