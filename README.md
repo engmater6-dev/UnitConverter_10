@@ -9,6 +9,7 @@
 ## 목차
 
 - [개요 (Overview)](#개요-overview)
+- [진행 상황 (Progress)](#진행-상황-progress)
 - [빠른 시작 (Quick Start)](#빠른-시작-quick-start)
 - [지원 단위 및 비율](#지원-단위-및-비율)
 - [입력 형식 계약](#입력-형식-계약)
@@ -43,7 +44,66 @@
 
 요구·인수·회귀 규칙의 **단일 기준(Source of Truth)** 은 [doc/PRD.md](doc/PRD.md)이며, 작업 진행은 [doc/TODO.md](doc/TODO.md)를 따릅니다.
 
-> **구현 상태:** v1.0 인수 진행 중. 루트 `UnitConverter.py`는 **레거시 프로토타입**(PRD 인수 미달). 목표 구조는 아래 [아키텍처](#아키텍처) 참고.
+> **구현 상태:** TDD **RED** 완료 — pytest 계약 테스트만 존재, `entity`/`boundary` **미구현**. CLI는 레거시 `main/UnitConverter.py`만 동작. 상세는 [진행 상황](#진행-상황-progress).
+
+---
+
+## 진행 상황 (Progress)
+
+**최종 갱신:** 2026-05-20 · **현재 단계:** TDD RED (01)
+
+### TDD 사이클
+
+| 단계 | 상태 | 비고 |
+|------|------|------|
+| **RED** | ✅ 완료 | Domain·Boundary pytest 추가, 실행 시 fail 확인 |
+| **GREEN** | 🔲 예정 | `entity/`, `boundary/` 최소 구현 |
+| **REFACTOR** | 🔲 예정 | pytest green 유지하며 구조 정리 |
+
+### 완료 항목
+
+| 구분 | 산출물 | 설명 |
+|------|--------|------|
+| 문서 | `doc/PRD.md`, `doc/TODO.md`, `.cursorrules` | 계약·작업 기준선 |
+| 테스트 | `pytest.ini`, `tests/helpers.py`, `tests/conftest.py` | EPS·Background fixture |
+| entity RED | `tests/entity/test_registry.py` | meter/feet/yard 비율, `DUPLICATE_UNIT` |
+| entity RED | `tests/entity/test_conversion.py` | `meter:2.5`, `feet:1` 역변환 (EPS) |
+| boundary RED | `tests/boundary/test_input_parser.py` | F-02 오류 5종 (`MALFORMED_INPUT` 등) |
+| boundary RED | `tests/boundary/test_output_formatter.py` | LHS 보존, target 1자리 half-up |
+| boundary RED | `tests/boundary/test_error_presenter.py` | stderr `code`/`message`, exit 1 |
+| 기록 | [prompt/01.red.md](prompt/01.red.md), [report/01.red.md](report/01.red.md) | 프롬프트 로그·RED 보고서 |
+
+### 미구현 (GREEN 대상)
+
+- `entity/` — `UnitRegistry`, `ConversionEngine`, `DomainError`
+- `boundary/` — `CliInputParser`, `OutputFormatter`, `ErrorPresenter`
+- `control/`, `data/`, `config/units.json` — v1.0 이후
+
+### pytest 현황 (RED 검증)
+
+```bash
+py -3 -m pytest tests/ -v
+# → exit 4, ModuleNotFoundError: No module named 'entity'
+# (conftest가 entity를 import; 수집 TC 0건 — 구현 추가 후 assert 단계 fail/pass 재검증)
+```
+
+| 레이어 테스트 | 파일 수 | 실행 |
+|---------------|---------|------|
+| `tests/entity/` | 2 | import 실패로 미실행 |
+| `tests/boundary/` | 3 | import 실패로 미실행 |
+
+### TODO 연동 (doc/TODO.md)
+
+| ID | RED 테스트 반영 | GREEN 구현 |
+|----|-----------------|------------|
+| M-01 | `test_registry.py` | 🔲 |
+| M-02 | `test_conversion.py` | 🔲 |
+| M-04, M-05 | `test_input_parser.py` | 🔲 |
+| M-06 | `test_output_formatter.py` | 🔲 |
+| M-07 | `test_error_presenter.py` | 🔲 |
+| M-09 | Domain RED 게이트 | 🔲 assert fail → pass |
+
+**다음 작업:** `entity/`·`boundary/` 스켈레톤 추가 후 `pytest tests/entity/ -v` → GREEN.
 
 ---
 
@@ -73,7 +133,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # 실행 (레거시)
-python UnitConverter.py
+python main/UnitConverter.py
 ```
 
 프롬프트에 `Insert value for converting (ex: meter:2.5):` 가 나오면 입력합니다.
@@ -227,7 +287,22 @@ flowchart TB
 target_amount = source_amount × MetersPerUnit(source) ÷ MetersPerUnit(target)
 ```
 
-### 디렉터리 (목표)
+### 디렉터리
+
+**현재 (2026-05-20)**
+
+```text
+tests/           # ✅ RED pytest (entity / boundary)
+tests/entity/    # test_registry.py, test_conversion.py
+tests/boundary/  # test_input_parser.py, test_output_formatter.py, test_error_presenter.py
+main/            # UnitConverter.py (레거시)
+doc/             # PRD, TODO
+prompt/          # 01.red.md
+report/          # 01.red.md
+pytest.ini
+```
+
+**목표 (v1.0)**
 
 ```text
 entity/      # Domain — I/O 금지
@@ -246,14 +321,14 @@ config/      # units.json
 
 - **pytest** + **pytest-cov**
 
-### 명령 (목표 구조)
+### 명령
 
 ```bash
-# 전체 테스트
-python -m pytest tests/ -v
+# 전체 테스트 (현재: entity 미구현 → import 실패, RED)
+py -3 -m pytest tests/ -v
 
-# Domain만
-python -m pytest tests/entity/ -v
+# Domain만 (GREEN 이후)
+py -3 -m pytest tests/entity/ -v
 
 # 커버리지 (PRD §4.3)
 python -m pytest tests/ \
@@ -426,6 +501,8 @@ docs: readme — align error codes with PRD 3.2
 | [doc/PRD.md](doc/PRD.md) | 요구·계약·인수·회귀 (Source of Truth) |
 | [doc/TODO.md](doc/TODO.md) | v1.0 작업·마일스톤·회귀 체크리스트 |
 | [doc/README_ref.md](doc/README_ref.md) | 초기 README 보존본 |
+| [report/01.red.md](report/01.red.md) | RED 단계 보고서 (산출물·pytest·GREEN 체크리스트) |
+| [prompt/01.red.md](prompt/01.red.md) | RED 단계 프롬프트·답변 로그 |
 
 ---
 
@@ -433,10 +510,10 @@ docs: readme — align error codes with PRD 3.2
 
 | 단계 | 시간 | 내용 |
 |------|------|------|
-| 1 | 0.5h | 레거시·PRD·계약 분석 |
-| 2 | 2h | 필수 요구·OCP/SRP·입력 검증 (M-01~M-11) |
+| 1 | 0.5h | 레거시·PRD·계약 분석 — **진행 중** |
+| 2 | 2h | 필수 요구·OCP/SRP·입력 검증 (M-01~M-11) — **RED 테스트 완료** |
 | 3 | 0.5h | 환산·검증 TC |
 | 4 | 2h | 설정·등록·포맷 (S-01~S-08) |
 | 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) |
 
-진행 상황: [doc/TODO.md](doc/TODO.md) 🔴 필수 항목 체크.
+진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [doc/TODO.md](doc/TODO.md) 🔴 필수 항목 · [report/01.red.md](report/01.red.md)

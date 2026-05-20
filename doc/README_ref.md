@@ -18,7 +18,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # 실행
-python UnitConverter.py
+python main/UnitConverter.py
 
 # 가상환경 비활성화
 deactivate

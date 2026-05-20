@@ -4,7 +4,7 @@
 |------|------|
 | **저장소** | `c:\DEV\2-4.unit_converter` |
 | **문서 버전** | Phase 4 기준 (Epic / User Stories US-01~07 / Gherkin 8 Scenarios) |
-| **원천 요구** | [README.md](../README.md), 레거시 `UnitConverter.py` |
+| **원천 요구** | [README.md](../README.md), 레거시 `main/UnitConverter.py` |
 | **상태** | 승인 전 초안 |
 
 ---

@@ -249,7 +249,8 @@ file_structure:
     │   ├── boundary/
     │   ├── data/
     │   └── integration/
-    └── UnitConverter.py          # 레거시 — deprecate 대상
+    ├── main/
+    │   └── UnitConverter.py      # 레거시 — deprecate 대상
 
 ################################################################################
 # ai_behavior
