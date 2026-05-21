@@ -3,6 +3,7 @@
 import pytest
 
 from boundary.cli_input_parser import CliInputParser
+from entity.unit_registry import UnitRegistry
 
 
 class TestBoundaryRed:
@@ -26,7 +27,12 @@ class TestBoundaryRed:
             parser.parse("meter:-1.0")
 
     def test_tc_a_04_unknown_unit_parsec_raises_value_or_type_error(self) -> None:
-        pytest.fail("RED")
+        # Given: parsec not in default registry
+        # When: parse "parsec:1.0"
+        # Then: ValueError or TypeError
+        parser = CliInputParser(UnitRegistry())
+        with pytest.raises((ValueError, TypeError)):
+            parser.parse("parsec:1.0")
 
     def test_tc_a_05_non_numeric_meter_abc_raises_value_or_type_error(self) -> None:
         pytest.fail("RED")

@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 
 from entity.errors import DomainError
+from entity.unit_registry import UnitRegistry
 
 _UNIT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
 _MAX_INPUT_LEN = 256
@@ -25,6 +26,9 @@ class RegisterCommand:
 
 
 class CliInputParser:
+    def __init__(self, registry: UnitRegistry | None = None) -> None:
+        self._registry = registry
+
     def parse(self, line: str) -> ConvertCommand | RegisterCommand:
         if len(line) > _MAX_INPUT_LEN:
             raise DomainError("INPUT_TOO_LONG", "Input exceeds 256 characters")
@@ -46,6 +50,12 @@ class CliInputParser:
             raise ValueError(f"Value must be non-negative: {amount}")
         if amount != amount or amount in (float("inf"), float("-inf")):
             raise DomainError("NON_FINITE_VALUE", "Value must be finite")
+        if self._registry is not None:
+            try:
+                self._registry.get_meters_per_unit(unit_id)
+            except DomainError as exc:
+                if exc.code == "UNKNOWN_UNIT":
+                    raise ValueError(f"Unknown unit: {unit_id}") from exc
         return ConvertCommand(unit_id=unit_id, amount=amount)
 
     def _parse_register(self, line: str) -> RegisterCommand:
