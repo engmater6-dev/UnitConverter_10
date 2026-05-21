@@ -2,6 +2,8 @@
 
 import pytest
 
+from entity.conversion_engine import ConversionEngine
+from entity.unit_registry import UnitRegistry
 from tests.helpers import assert_approx
 
 
@@ -27,11 +29,26 @@ class TestEntityRed:
         # Then: 1.0 / 3.28084 ≈ 0.30480 (tol 1e-5)
         assert_approx(result, 0.30480, tol=1e-5)
 
-    def test_tc_b_04_convert_all_meter_returns_all_registered_units(self) -> None:
-        pytest.fail("RED")
+    def test_tc_b_04_convert_all_meter_returns_all_registered_units(self, engine) -> None:
+        # Given: registry meter, feet (3.28084), yard (1.09361)
+        # When: convert_all meter 1.0
+        results = engine.convert_all("meter", 1.0)
+        # Then: 3 targets with hub ratios
+        assert len(results) == 3
+        by_unit = {r.target_unit: r.target_amount for r in results}
+        assert_approx(by_unit["feet"], 3.28084, tol=1e-5)
+        assert_approx(by_unit["yard"], 1.09361, tol=1e-5)
+        assert_approx(by_unit["meter"], 1.0, tol=1e-9)
 
     def test_tc_b_05_register_unit_cubit_then_convert_to_meter(self) -> None:
-        pytest.fail("RED")
+        # Given: 1 cubit = 0.4572 meter
+        registry = UnitRegistry()
+        registry.register_from_ref("cubit", 0.4572, "meter")
+        engine = ConversionEngine(registry)
+        # When: convert cubit 10 → meter
+        result = engine.convert("cubit", 10.0, "meter")
+        # Then: 10 × 0.4572 = 4.572
+        assert_approx(result, 4.572, tol=1e-5)
 
     def test_tc_b_06_load_config_valid_path_applies_ratios(self) -> None:
         pytest.fail("RED")
