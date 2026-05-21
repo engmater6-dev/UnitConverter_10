@@ -18,6 +18,7 @@
 - [RED 단계 To-Do 리스트](#red-단계-to-do-리스트)
 - [Golden Master 회귀 안전장치](#golden-master-회귀-안전장치)
 - [GREEN 단계 To-Do 리스트](#green-단계-to-do-리스트)
+- [REFACTOR 단계 To-Do 리스트](#refactor-단계-to-do-리스트)
 - [설정 파일 (JSON/YAML)](#설정-파일-jsonyaml)
 - [출력 포맷](#출력-포맷)
 - [기여 가이드 (Contributing)](#기여-가이드-contributing)
@@ -47,21 +48,21 @@
 
 요구·인수·회귀 규칙의 **단일 기준(Source of Truth)** 은 [doc/PRD.md](doc/PRD.md)이며, 작업 진행은 [doc/TODO.md](doc/TODO.md)를 따릅니다.
 
-> **구현 상태:** TDD **GREEN (02) 완료** — BCE 레이어(`entity`/`control`/`boundary`/`data`) 구현, `tests/red/` 14/14 PASS, 전체 `tests/` 69 PASS. 진입점: `boundary.app` · `main/UnitConverter.py`(위임). 상세는 [진행 상황](#진행-상황-progress).
+> **구현 상태:** TDD **REFACTOR 완료** — BCE + Dual-Track 리팩터(5커밋), `tests/red/` 14/14 PASS, 전체 `tests/` **78 PASS**, Golden Master 4/4 PASS. 진입점: `python -m boundary.app` · `main/UnitConverter.py` → `cli_driver.run_cli()`. 상세는 [진행 상황](#진행-상황-progress).
 
 ---
 
 ## 진행 상황 (Progress)
 
-**최종 갱신:** 2026-05-21 · **현재 단계:** TDD GREEN (02) · **브랜치:** `green` (base: `B_10`)
+**최종 갱신:** 2026-05-21 · **현재 단계:** TDD **REFACTOR 완료** · **브랜치:** `refactor`
 
 ### TDD 사이클
 
 | 단계 | 상태 | 비고 |
 |------|------|------|
-| **RED** | ✅ 완료 | `tests/red/` 14건 스켈레톤 → 의도적 FAIL |
-| **GREEN** | ✅ 완료 | Dual-Track TC-A/B 14/14 PASS · 전체 69 PASS |
-| **REFACTOR** | 🔲 예정 | pytest green 유지하며 구조 정리 |
+| **RED** | ✅ 완료 | `tests/red/` 14건 — TC-A-01~07, TC-B-01~07 |
+| **GREEN** | ✅ 완료 | BCE 최소 구현 · Dual-Track 14/14 PASS |
+| **REFACTOR** | ✅ 완료 | pytest green 유지 · 5 refactor/test 커밋 · [REFACTOR To-Do](#refactor-단계-to-do-리스트) |
 
 ### 완료 항목 (RED)
 
@@ -81,44 +82,73 @@
 | Data | `data/config_loader.py`, `config/units.json` | JSON/YAML·기본값 fallback |
 | 회귀 테스트 | `tests/entity/`, `tests/boundary/`, `tests/data/` | 36+건 PASS |
 | 기록 | [prompt/02.green.md](prompt/02.green.md), [report/02.green.md](report/02.green.md), [task/green/02.green.md](task/green/02.green.md) | GREEN 로그·보고·실행 프롬프트 |
-| 레거시 | `main/UnitConverter.py` | 인라인 환산 제거 → `UnitConverterApp` 위임 |
+| 레거시 | `main/UnitConverter.py` | `cli_driver.run_cli()` 위임 (deprecate 대상) |
+| Golden Master | `tests/golden_master_expected.txt`, `tests/test_golden_master.py` | stdout 회귀 4시나리오 · CI workflow |
 
-### pytest 현황 (GREEN 검증)
+### 완료 항목 (REFACTOR)
+
+| 구분 | 산출물 | 설명 |
+|------|--------|------|
+| Domain | `entity/unit_registry.py` | `METER_TO_FEET` / `METER_TO_YARD` 상수 · `UnitRegistry` Map (R-L1~L4, GREEN 반영) |
+| Boundary | `boundary/error_codes.py` | PRD 에러 코드·메시지 단일 출처 (R-U2) |
+| Boundary | `boundary/cli_driver.py` | CLI I/O·`SystemExit` — `main()` 중복 제거 |
+| Control | `control/run_line_use_case.py` | parse → register/convert → format 오케스트레이션 |
+| 테스트 | `tests/boundary/test_cli_driver.py` | exit code · stderr · 레거시 `main` 경로 계약 |
+| 기록 | [refactoring_track_list](refactoring_track_list), [prompt/03.golen_master.md](prompt/03.golen_master.md) | 트랙·GM 로그 |
+| 기록 | [report/03.golen_master.md](report/03.golen_master.md) | Golden Master 보고서 |
+
+**REFACTOR 커밋 (`refactor` 브랜치):** `cc67a99` · `dc3de28` · `510cfa3` · `8451f3d` · `508a10e`
+
+### pytest 현황 (REFACTOR 검증)
 
 ```bash
-py -3 -m pytest tests/red/ -v    # 14 passed
-py -3 -m pytest tests/ -v        # 69 passed, 0 failed
+py -3 -m pytest tests/red/ -v           # 14 passed (TC-A/B)
+py -3 -m pytest -m golden_master -v    # 4 passed
+py -3 -m pytest tests/ -v              # 78 passed, 0 failed
+python scripts/generate_golden_master.py --check
 ```
 
 | 스위트 | collected | 결과 |
 |--------|-----------|------|
 | `tests/red/` (TC-A/B 게이트) | 14 | **14 passed** |
 | `tests/entity/` | 20 | passed |
-| `tests/boundary/` | 20 | passed |
+| `tests/boundary/` | 25 | passed (CLI driver 5건 포함) |
 | `tests/data/` | 5 | passed |
 | `tests/test_golden_master.py` (GM) | 4 | **4 passed** |
-| **합계** | **73** | **73 passed** |
+| **합계** | **78** | **78 passed** |
 
-### 커버리지 (2026-05-21)
+### 커버리지 (REFACTOR 검증 · 2026-05-21)
 
 ```bash
-py -3 -m pytest tests/ --cov=entity --cov=boundary --cov=control --cov-report=term-missing
+py -3 -m pytest tests/ --cov=entity --cov=control --cov=boundary --cov-report=term-missing --cov-report=html
 ```
+
+> `--cov=unit_converter` 패키지는 없음. BCE 패키지 `entity` · `control` · `boundary` 로 측정.
 
 | 레이어 | 목표 | 실측 |
 |--------|------|------|
-| Domain (`entity` + `control`) | ≥ 95% | **96.3%** |
-| Boundary | ≥ 85% | **85.1%** |
+| Domain (`entity` + `control`) | ≥ 95% | **96.7%** |
+| Boundary | ≥ 85% | **90.2%** |
+
+### 구조 검증 (REFACTOR 인수)
+
+| 항목 | 상태 |
+|------|------|
+| TC-A-01~07 · TC-B-01~07 | ✅ PASS |
+| Golden Master stdout 불변 | ✅ PASS + `--check` OK |
+| 단위별 `if-else` 환산 분기 | ✅ 없음 (`UnitRegistry` + `convert_all` 순회) |
+| `3.28084` / `1.09361` 프로덕션 인라인 | ✅ `METER_TO_*` 상수·`config/units.json`만 |
+| Domain / Boundary 분리 | ✅ Logic=`entity`+`control` · UI=`boundary` |
 
 ### TODO 연동 (doc/TODO.md)
 
-| ID | RED | GREEN |
-|----|-----|-------|
-| M-01~M-02, M-09 | ✅ `tests/red/` + entity | ✅ |
-| M-04~M-07 | ✅ boundary RED | ✅ |
-| M-14 (config) | — | ✅ `tests/data/`, TC-B-06~07 |
+| ID | RED | GREEN | REFACTOR |
+|----|-----|-------|----------|
+| M-01~M-02, M-09 | ✅ | ✅ | ✅ Registry·상수 |
+| M-04~M-07 | ✅ | ✅ | ✅ Parser·Formatter·에러 상수 |
+| M-14 (config) | — | ✅ | ✅ |
 
-**다음 작업:** `refactor` 브랜치 — 구조 정리·중복 제거 (pytest green 유지). 체크리스트: [GREEN 단계 To-Do](#green-단계-to-do-리스트).
+**다음 작업 (선택):** PR 머지 · GM-08 branch protection · JSON/CSV 출력 (v1.1) · [report/04.refactor.md](report/04.refactor.md) 작성.
 
 ---
 
@@ -184,8 +214,8 @@ meter:5.0
 
 | 경로 | 설명 |
 |------|------|
-| `python -m boundary.app` | BCE 앱 (`UnitConverterApp.run_line`) |
-| `python main/UnitConverter.py` | 레거시 경로 — 동일 App 위임 |
+| `python -m boundary.app` | 권장 — `cli_driver.run_cli()` → `UnitConverterApp.run_line` |
+| `python main/UnitConverter.py` | 레거시 — 동일 `run_cli()` 위임 |
 
 ---
 
@@ -305,25 +335,30 @@ target_amount = source_amount × MetersPerUnit(source) ÷ MetersPerUnit(target)
 
 ### 디렉터리
 
-**현재 (2026-05-21 · GREEN 완료)**
+**현재 (2026-05-21 · REFACTOR 완료)**
 
 ```text
-entity/          # UnitRegistry, ConversionEngine
-control/         # ConvertUseCase, RegisterUseCase
-boundary/        # CliInputParser, OutputFormatter, ErrorPresenter, app
+entity/          # UnitRegistry, ConversionEngine, METER_TO_FEET/YARD
+control/         # ConvertUseCase, RegisterUseCase, RunLineUseCase
+boundary/        # CliInputParser, OutputFormatter, ErrorPresenter, error_codes, cli_driver, app
 data/            # config_loader, models
 config/          # units.json
 tests/
-  red/           # TC-A-01~07, TC-B-01~07 (GREEN 게이트 14/14)
+  red/           # TC-A-01~07, TC-B-01~07 (14/14 PASS)
   entity/        # Domain 회귀
-  boundary/      # Boundary 회귀
+  boundary/      # Boundary + test_cli_driver (exit/stderr)
   data/          # 설정 로드
-main/            # UnitConverter.py → App 위임
+  test_golden_master.py
+  golden_master_expected.txt
+main/            # UnitConverter.py → cli_driver.run_cli()
+scripts/         # generate_golden_master.py
 doc/             # PRD, test_plan, defect_list, RED_phase_tests
-prompt/          # 01.red.md, 02.green.md
-report/          # 01.red.md, 02.green.md, 00.red_test_compare.md
-task/green/      # 02.green.md (실행 프롬프트)
+prompt/          # 01.red.md, 02.green.md, 03.golen_master.md, 04.refactor.md
+report/          # 01~04, 00.red_test_compare.md
+refactoring_track_list
+task/green/      # 02.green.md
 pytest.ini
+.github/workflows/golden_master.yml
 ```
 
 ---
@@ -337,7 +372,7 @@ pytest.ini
 ### 명령
 
 ```bash
-# 전체 테스트 (GREEN: 69 passed)
+# 전체 테스트 (REFACTOR: 78 passed)
 py -3 -m pytest tests/ -v
 
 # RED/GREEN 게이트만 (14 passed)
@@ -425,7 +460,7 @@ py -3 -m pytest tests/ \
 ### CI 연동
 - [x] GM-07: .github/workflows/golden_master.yml 작성
 - [ ] GM-08: PR 머지 차단 (required status check) 설정 — GitHub **Settings → Branches → Branch protection** 에서 `Golden Master` 체크 필수
-- [ ] GM-09: Refactoring 후 Golden Master 재실행 → PASS 확인
+- [x] GM-09: Refactoring 후 Golden Master 재실행 → PASS 확인
 
 ---
 
@@ -477,7 +512,7 @@ py -3 -m pytest tests/ \
 
 ### 품질·구조 (GREEN 인수)
 
-- [x] `tests/` 전체 **69 passed**, 0 failed
+- [x] `tests/` 전체 **78 passed**, 0 failed (REFACTOR 후)
 - [x] Domain Logic 커버리지 ≥ 95%
 - [x] Boundary 커버리지 ≥ 85%
 - [x] 비율 상수 `3.28084`/`1.09361` — `DEFAULT_METERS_PER_UNIT`·`config/units.json`만 (환산식 인라인 없음)
@@ -490,7 +525,53 @@ py -3 -m pytest tests/ \
 - [x] [report/02.green.md](report/02.green.md) — pytest·커버리지·TC 매핑
 - [x] [prompt/02.green.md](prompt/02.green.md) — 프롬프트·답변 로그
 
-**다음:** REFACTOR 브랜치 · [report/02.green.md](report/02.green.md) §9
+**상태:** GREEN 인수 완료. REFACTOR는 [REFACTOR 단계 To-Do](#refactor-단계-to-do-리스트) 참고.
+
+### GREEN 후속 (미완 · v1.1 또는 별도 스프린트)
+
+- [ ] JSON/CSV 출력 포맷 (PRD §6.2·§6.3)
+- [ ] Gherkin 8 scenarios 자동화 (선택)
+- [ ] `format:table` / `format:json` / `format:csv` CLI 명령 (PRD §3.1)
+
+---
+
+## REFACTOR 단계 To-Do 리스트
+
+> [refactoring_track_list](refactoring_track_list) · Dual-Track REFACTOR · pytest green 유지.
+
+### Track — Domain (Logic)
+
+| ID | 목표 | 커밋 | 상태 |
+|----|------|------|------|
+| R-L1 | if-else → `UnitRegistry` (Map) | `refactor(domain): replace if-else with UnitRegistry` | [x] GREEN |
+| R-L2 | `METER_TO_FEET` / `METER_TO_YARD` 상수 | `refactor(domain): extract conversion ratio constants` | [x] `cc67a99` |
+| R-L3 | `convert()` meter 허브 단일 경로 | `refactor(domain): extract convert() with meter hub` | [x] GREEN |
+| R-L4 | `convertAll()` Registry 순회 | `refactor(domain): extract convertAll() from main` | [x] GREEN |
+
+### Track — Boundary (UI)
+
+| ID | 목표 | 커밋 | 상태 |
+|----|------|------|------|
+| R-U1 | `CliInputParser` 분리 | `refactor(boundary): extract InputParser` | [x] GREEN |
+| R-U2 | `error_codes.py` 상수화 | `refactor(boundary): extract error message constants` | [x] `dc3de28` |
+| R-U3 | `OutputFormatter` 분리 | `refactor(boundary): extract OutputFormatter` | [x] GREEN |
+
+### 통합 계획 (REFACTOR 스프린트)
+
+| 항목 | 커밋 | 상태 |
+|------|------|------|
+| CLI Driver DRY (`main` / `app.main`) | `refactor(boundary): extract cli driver for duplicated main()` | [x] `510cfa3` |
+| `RunLineUseCase` (Control 오케스트레이션) | `refactor(control): extract RunLineUseCase from UnitConverterApp` | [x] `8451f3d` |
+| CLI exit/stderr 계약 테스트 | `test(boundary): add cli driver exit and stderr contract tests` | [x] `508a10e` |
+
+### REFACTOR 인수 체크
+
+- [x] `py -3 -m pytest tests/ -v` → 78 passed
+- [x] `py -3 -m pytest tests/red/ -v` → TC-A/B 14 passed
+- [x] `py -3 -m pytest -m golden_master -v` → 4 passed
+- [x] `python scripts/generate_golden_master.py --check` → OK
+- [x] Domain cov ≥ 95% · Boundary cov ≥ 85%
+- [x] [report/04.refactor.md](report/04.refactor.md) · [prompt/04.refactor.md](prompt/04.refactor.md)
 
 ---
 
@@ -644,10 +725,15 @@ docs: readme — align error codes with PRD 3.2
 | [doc/defect_list.md](doc/defect_list.md) | 결함 목록·수정·회귀 상태 |
 | [doc/README_ref.md](doc/README_ref.md) | 초기 README 보존본 |
 | [report/01.red.md](report/01.red.md) | RED 단계 보고서 |
-| [report/02.green.md](report/02.green.md) | GREEN 단계 보고서 (69 PASS·커버리지) |
+| [report/02.green.md](report/02.green.md) | GREEN 단계 보고서 |
+| [report/03.golen_master.md](report/03.golen_master.md) | Golden Master 보고서 |
+| [report/04.refactor.md](report/04.refactor.md) | REFACTOR 보고서 (78 PASS·커버리지·5커밋) |
+| [refactoring_track_list](refactoring_track_list) | REFACTOR 트랙·커밋 매핑 |
 | [report/00.red_test_compare.md](report/00.red_test_compare.md) | `tests/` vs `red_temp/tests/` 비교 |
 | [prompt/01.red.md](prompt/01.red.md) | RED 프롬프트·답변 로그 |
 | [prompt/02.green.md](prompt/02.green.md) | GREEN 프롬프트·답변 로그 |
+| [prompt/03.golen_master.md](prompt/03.golen_master.md) | Golden Master 프롬프트·답변 로그 |
+| [prompt/04.refactor.md](prompt/04.refactor.md) | REFACTOR 프롬프트·답변 로그 |
 | [task/green/02.green.md](task/green/02.green.md) | GREEN 실행 프롬프트 (assert 스펙) |
 
 ---
@@ -660,6 +746,6 @@ docs: readme — align error codes with PRD 3.2
 | 2 | 2h | 필수 요구·OCP/SRP·입력 검증 (M-01~M-11) — **RED·GREEN 완료** |
 | 3 | 0.5h | 환산·검증 TC — **TC-B-01~07 PASS** |
 | 4 | 2h | 설정·등록·포맷 (S-01~S-08) — **table·config GREEN** |
-| 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) — **REFACTOR 예정** |
+| 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) — **REFACTOR 완료** |
 
-진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [GREEN To-Do](#green-단계-to-do-리스트) · [report/02.green.md](report/02.green.md)
+진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [REFACTOR To-Do](#refactor-단계-to-do-리스트) · [report/03.golen_master.md](report/03.golen_master.md)
