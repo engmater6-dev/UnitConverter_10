@@ -45,7 +45,12 @@ class TestBoundaryRed:
             parser.parse("parsec:1.0")
 
     def test_tc_a_05_non_numeric_meter_abc_raises_value_or_type_error(self) -> None:
-        pytest.fail("RED")
+        # Given: non-numeric amount
+        # When: parse meter:abc
+        # Then: ValueError or TypeError
+        parser = CliInputParser()
+        with pytest.raises((ValueError, TypeError)):
+            parser.parse("meter:abc")
 
     def test_tc_a_06_output_preserves_source_unit_and_amount(self) -> None:
         # Given: expression contract — LHS preserves source amount·unit
