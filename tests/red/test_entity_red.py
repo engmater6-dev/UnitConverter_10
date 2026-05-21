@@ -1,7 +1,13 @@
 """TRACK B — Domain / Logic RED skeleton."""
 
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
 import pytest
 
+from data.config_loader import load_units_config
 from entity.conversion_engine import ConversionEngine
 from entity.unit_registry import UnitRegistry
 from tests.helpers import assert_approx
@@ -50,8 +56,33 @@ class TestEntityRed:
         # Then: 10 × 0.4572 = 4.572
         assert_approx(result, 4.572, tol=1e-5)
 
-    def test_tc_b_06_load_config_valid_path_applies_ratios(self) -> None:
-        pytest.fail("RED")
+    def test_tc_b_06_load_config_valid_path_applies_ratios(self, tmp_path: Path) -> None:
+        # Given: valid units.json with custom feet ratio
+        config = {
+            "schema_version": 1,
+            "base_unit": "meter",
+            "units": [
+                {"id": "meter", "meters_per_unit": 1.0},
+                {"id": "feet", "meters_per_unit": 4.0},
+                {"id": "yard", "meters_per_unit": 1.09361},
+            ],
+        }
+        path = tmp_path / "units.json"
+        path.write_text(json.dumps(config), encoding="utf-8")
+        # When: load_config → registry → convert
+        units = load_units_config(path)
+        engine = ConversionEngine(UnitRegistry(units))
+        result = engine.convert("meter", 1.0, "feet")
+        # Then: file ratio applied (not default 3.28084)
+        assert_approx(result, 4.0, tol=1e-5)
 
     def test_tc_b_07_load_config_missing_path_keeps_defaults(self) -> None:
-        pytest.fail("RED")
+        # Given: missing file path
+        # When: load_config nonexistent
+        units = load_units_config(Path("/nonexistent/units.json"))
+        engine = ConversionEngine(UnitRegistry(units))
+        # Then: default 3.28084 / 1.09361
+        assert units["feet"] == 3.28084
+        assert units["yard"] == 1.09361
+        assert_approx(engine.convert("meter", 1.0, "feet"), 3.28084, tol=1e-5)
+        assert_approx(engine.convert("meter", 1.0, "yard"), 1.09361, tol=1e-5)
