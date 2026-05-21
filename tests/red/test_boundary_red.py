@@ -18,7 +18,12 @@ class TestBoundaryRed:
             parser.parse("meter")
 
     def test_tc_a_03_negative_meter_raises_value_or_type_error(self) -> None:
-        pytest.fail("RED")
+        # Given: meter:-1.0 violates NEG-01 at parse layer
+        # When: parse negative amount
+        # Then: ValueError or TypeError
+        parser = CliInputParser()
+        with pytest.raises((ValueError, TypeError)):
+            parser.parse("meter:-1.0")
 
     def test_tc_a_04_unknown_unit_parsec_raises_value_or_type_error(self) -> None:
         pytest.fail("RED")
