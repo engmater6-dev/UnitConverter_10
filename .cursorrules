@@ -1,0 +1,291 @@
+################################################################################
+# project
+################################################################################
+project:
+  name: unit_converter
+  language: python
+  python_version: "3.11+"
+  description: >
+    meter 기준 길이 단위 변환 CLI 학습 프로젝트.
+    계약·pytest·Gherkin·BCE 레이어로 검증 가능한 구조를 목표로 한다.
+  docs:
+    prd: doc/PRD.md
+    todo: doc/TODO.md
+    readme: README.md
+  domain:
+    base_unit: meter
+    default_ratios:
+      meter: 1.0
+      feet: 3.28084
+      yard: 1.09361
+    input_formats:
+      convert: "unit:value"
+      register: "register:new_unit=ratio:ref_unit"
+      format: "format:table|json|csv"
+  numeric_tolerance:
+    eps_abs: 1.0e-9
+    eps_rel: 1.0e-9
+  display_rules:
+    table_decimal_places: 1
+    json_csv_decimal_places: 4
+    rounding: half_up
+  expression_contract: >
+    모든 출력 줄 LHS는 사용자 입력 amount·unit과 동일.
+    target만 환산·반올림.
+  policies:
+    neg_01: "amount >= 0 finite; negative -> NEGATIVE_VALUE"
+  quality_goals:
+    - OCP
+    - SRP
+    - BCE_layers
+    - Dual_Track_TDD
+    - externalized_unit_config
+    - dynamic_unit_registration
+    - output_formats: [table, json, csv]
+
+################################################################################
+# code_style
+################################################################################
+code_style:
+  formatter: black
+  import_sorter: isort
+  line_length: 88
+  type_hints: required
+  naming:
+    modules_functions_variables: snake_case
+    classes: PascalCase
+    constants: UPPER_SNAKE_CASE
+    private: "_leading_underscore"
+  rules:
+    - "모든 공개 함수·메서드에 인자·반환 타입 힌트를 작성한다."
+    - "매직 넘버·문자열은 상수·Enum·dataclass 필드로 이름을 붙인다."
+    - "한 파일은 단일 책임(SRP)을 유지한다."
+    - "docstring은 공개 API·비자명 invariant에만 둔다."
+    - "README·doc/PRD.md 계약과 모순되는 동작을 추가하지 않는다."
+
+################################################################################
+# architecture
+################################################################################
+architecture:
+  pattern: dual_track_bce
+  layers:
+    entity:
+      alias: domain
+      responsibility: >
+        UnitId, LengthAmount, UnitRegistry, ConversionEngine, RegisterUnitPolicy.
+        환산·등록·불변식. I/O·포맷·CLI·파일 무의존.
+    control:
+      responsibility: >
+        ConvertUseCase, RegisterUseCase, BootstrapUseCase.
+        entity API만 호출; stdin/stdout 직접 접근 금지.
+    boundary:
+      responsibility: >
+        CliInputParser, OutputFormatter, ErrorPresenter, main 진입점.
+        entity는 Port/Mock으로만 접근.
+    data:
+      responsibility: >
+        UnitRatioRepository, JsonFileUnitRatioRepository, InMemoryUnitRatioRepository.
+        entity가 정의한 Port만 구현.
+  dependency_direction:
+    allowed:
+      - boundary -> control
+      - control -> entity
+      - control -> data_port
+      - data -> data_port_definition
+    forbidden:
+      - entity -> boundary
+      - entity -> data_implementation
+      - control -> boundary
+      - boundary -> data_implementation
+  extension_rules:
+    - "신규 단위: Registry·config/units.json만; ConversionEngine if-elif 분기 금지."
+    - "신규 출력 포맷: boundary OutputFormatter만 확장."
+    - "feet↔yard 직접 비율 상수 금지; meter 경유 공식만."
+    - "레거시 UnitConverter.py 분기 복제 금지; 리팩터 후 deprecate."
+
+################################################################################
+# tdd_rules
+################################################################################
+tdd_rules:
+  red_phase:
+    description: >
+      실패하는 pytest를 먼저 추가한다. Domain(환산·등록)을 Boundary(파싱·포맷)보다 우선.
+      최소 한 가지 assert가 실패해야 RED 완료.
+    rules:
+      - "새 동작·버그 수정은 테스트 제목·assert·기대 error code를 먼저 고정한다."
+      - "Domain 테스트는 I/O·파일·stdin/stdout·JSON/CSV 포맷에 의존하지 않는다."
+      - "Boundary 테스트는 Domain을 Mock/Stub; 입력·출력 문자열·exit code만 검증."
+      - "실패 테스트에 invariant ID를 docstring 한 줄로 명시한다."
+      - "EPS_ABS=1e-9, EPS_REL=1e-9 동등 규칙을 모든 테스트에 동일 적용."
+      - "기본 비율 meter=1, feet=3.28084, yard=1.09361은 fixture로 고정."
+      - "한 RED 사이클당 단일 실패 원인만 추가한다."
+    must_not:
+      - "테스트를 통과시키기 위해 assert·기대값·error code를 구현에 맞게 수정한다."
+      - "RED 단계에서 전체 GREEN을 한 번에 구현한다."
+      - "Domain 테스트에서 open/read/print/subprocess를 호출한다."
+      - "README table 반올림값으로 Domain raw 비교를 대체한다."
+      - "skip·xfail로 실패를 숨긴다."
+
+  green_phase:
+    description: >
+      RED 테스트를 최소 구현으로 통과. meter 경유 환산·등록 거부·입력 검증 우선.
+    rules:
+      - "가장 작은 변경으로 현재 RED 묶음만 green."
+      - "feet↔yard 직접 비율 없이 meter 경유만."
+      - "음수·NaN·Inf·미등록 단위는 변환 결과 미생성 + DomainError/Result."
+      - "Boundary는 파싱·포맷·stderr만; 환산식은 entity에만."
+      - "green 후 pytest -k 또는 영향 모듈 재실행."
+    must_not:
+      - "GREEN을 위해 invariant·error code·message regex를 변경한다."
+      - "테스트 없이 공개 API·출력 필드를 추가한다."
+      - "테스트 케이스별 if-elif 분기로만 통과시킨다."
+      - "print 디버깅을 최종 stdout 계약에 남긴다."
+      - "한 턴에 파싱+Domain+Data+3포맷 동시 완성."
+
+  refactor_phase:
+    description: >
+      관련 pytest 전부 green일 때만 구조 정리. 행위·계약 불변.
+    rules:
+      - "refactor 전후 pytest green 유지."
+      - "중복 환산·검증은 entity 한곳으로."
+      - "error code→message는 ErrorPresenter 단일 매핑."
+      - "refactor 커밋에 테스트 추가 없음(행위 변경은 새 RED)."
+    must_not:
+      - "green 없이 대규모 파일 이동·이름 변경."
+      - "entity가 boundary·data를 import한다."
+      - "표시 반올림을 Domain으로 이동."
+      - "cov 미달을 pragma no cover로 해소."
+
+################################################################################
+# testing
+################################################################################
+testing:
+  framework: pytest
+  coverage_tool: pytest-cov
+  commands:
+    run: "python -m pytest tests/ -v"
+    entity: "python -m pytest tests/entity/ -v"
+    coverage: >
+      python -m pytest tests/
+      --cov=entity --cov=control --cov=boundary --cov=data
+      --cov-report=term-missing --cov-fail-under=85
+  structure: AAA
+  fixture_rules:
+    - "default_registry: meter/feet/yard (session)"
+    - "boundary: mock engine, capsys stderr/stdout"
+    - "data: tmp_path JSON; 운영 config mutate 금지"
+  coverage_thresholds:
+    entity: { line: 95, branch: 90 }
+    control: { line: 90, branch: 85 }
+    boundary: { line: 85, branch: 80 }
+    data: { line: 90, branch: 85 }
+    overall_fail_under: 85
+  test_naming: "test_<behavior>_<condition>_<expected>"
+  must_cover:
+    - "NEG-01 negative and zero"
+    - "expression contract LHS = input"
+    - "all F-02 error codes and message regex"
+    - "Gherkin 8 scenarios or equivalent"
+    - "register cubit then convert"
+
+################################################################################
+# forbidden
+################################################################################
+forbidden:
+  - id: F-01
+    pattern: "print(...) 디버그 후 제거하지 않음"
+    reason: "stdout 계약 오염"
+    alternative: "logging(debug) 또는 pytest capsys; 출력은 OutputFormatter만"
+  - id: F-02
+    pattern: "3.28084, 1.09361을 if/elif·함수 내부에 산재"
+    reason: "OCP 위반; feet-yard 직접 비율"
+    alternative: "UnitRegistry + config/units.json + meter 경유 ConversionEngine"
+  - id: F-03
+    pattern: "except: / except Exception: pass"
+    reason: "계약 오류 삼킴"
+    alternative: "명시 DomainError/Result; boundary ErrorPresenter 매핑"
+  - id: F-04
+    pattern: "module-level 가변 전역 registry·format"
+    reason: "테스트 격리 실패"
+    alternative: "UseCase·fixture·context 객체"
+  - id: F-05
+    pattern: "공개 함수 타입 힌트 생략"
+    reason: "계약 불명확"
+    alternative: "전 인자·반환 타입 명시"
+  - id: F-06
+    pattern: "entity/에서 open, input, Path.read_text"
+    reason: "레이어 침범"
+    alternative: "data/ Repository + control Bootstrap"
+  - id: F-07
+    pattern: "if unit == 'feet': return x * 3.28084 elif ..."
+    reason: "테스트별 분기·직접 비율 금지"
+    alternative: "registry.get_meters_per_unit 단일 공식"
+  - id: F-08
+    pattern: "테스트 없이 PRD 계약·비율·stderr 패턴 변경"
+    reason: "REG-01~06 회귀"
+    alternative: "PRD·테스트·Gherkin 동시 갱신 + 리뷰어 승인"
+
+################################################################################
+# file_structure
+################################################################################
+file_structure:
+  tree: |
+    2-4.unit_converter/
+    ├── .cursorrules
+    ├── README.md
+    ├── doc/
+    │   ├── PRD.md
+    │   ├── TODO.md
+    │   └── README_ref.md
+    ├── config/
+    │   └── units.json
+    ├── entity/
+    ├── control/
+    ├── boundary/
+    ├── data/
+    ├── tests/
+    │   ├── entity/
+    │   ├── control/
+    │   ├── boundary/
+    │   ├── data/
+    │   └── integration/
+    ├── main/
+    │   └── UnitConverter.py      # 레거시 — deprecate 대상
+
+################################################################################
+# ai_behavior
+################################################################################
+ai_behavior:
+  ignore_paths:
+    - red_temp/
+  principles:
+    - "red_temp/는 RED 단계 아카이브. 검토·구현·TODO·테스트 범위에서 제외."
+    - "Source of Truth: doc/PRD.md §3.2·§3.3·§6·§7. README와 충돌 시 PRD 우선."
+    - "레이어 위반 금지: entity는 boundary/data import 안 함."
+    - "테스트 먼저: RED → GREEN → REFACTOR."
+    - "doc/TODO.md Must(M-01~M-14) 범위만 수정; 무관 대량 변경 금지."
+  per_turn:
+    - "한 턴에 RED 하나 또는 GREEN 한 묶음."
+    - "구현으로 테스트 기대값을 맞추지 않는다."
+    - "가능하면 pytest 결과를 보고 before/after 요약."
+    - "사용자 명시 없이 git commit/push/PR 생성 금지."
+  error_codes_must_match_prd:
+    - MALFORMED_INPUT
+    - NON_NUMERIC
+    - NEGATIVE_VALUE
+    - NON_FINITE_VALUE
+    - INPUT_TOO_LONG
+    - INVALID_UNIT_ID
+    - UNKNOWN_UNIT
+    - DUPLICATE_UNIT
+    - INVALID_RATIO
+    - UNSUPPORTED_FORMAT
+    - CONFIG_LOAD_FAILED
+    - SCHEMA_INVALID
+    - FILE_NOT_FOUND
+    - PARSE_ERROR
+  when_stuck:
+    - "assert 완화·skip 대신 최소 구현 또는 fixture 수정."
+    - "stderr는 ErrorPresenter 한 곳만 수정."
+  output:
+    - "변경 요약: 레이어·TODO ID(M/S)·invariant 기준."
