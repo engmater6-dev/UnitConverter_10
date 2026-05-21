@@ -13,8 +13,12 @@ class TestEntityRed:
         # Then: 2.5 × 3.28084 ≈ 8.20210 (tol 1e-5)
         assert_approx(result, 8.20210, tol=1e-5)
 
-    def test_tc_b_02_convert_meter_to_yard_within_1e5(self) -> None:
-        pytest.fail("RED")
+    def test_tc_b_02_convert_meter_to_yard_within_1e5(self, engine) -> None:
+        # Given: 1 meter = 1.09361 yard (PRD §3.3)
+        # When: convert meter 1.0 → yard
+        result = engine.convert("meter", 1.0, "yard")
+        # Then: 1.0 × 1.09361 = 1.09361 (tol 1e-5)
+        assert_approx(result, 1.09361, tol=1e-5)
 
     def test_tc_b_03_convert_feet_to_meter_reverse_within_1e5(self) -> None:
         pytest.fail("RED")
