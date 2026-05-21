@@ -2,13 +2,20 @@
 
 import pytest
 
+from boundary.cli_input_parser import CliInputParser
+
 
 class TestBoundaryRed:
     def test_tc_a_01_meter_2_5_happy_path_returns_conversion(self) -> None:
         pytest.fail("RED")
 
     def test_tc_a_02_no_colon_raises_value_or_type_error(self) -> None:
-        pytest.fail("RED")
+        # Given: malformed input without ':'
+        # When: parse "meter"
+        # Then: ValueError or TypeError
+        parser = CliInputParser()
+        with pytest.raises((ValueError, TypeError)):
+            parser.parse("meter")
 
     def test_tc_a_03_negative_meter_raises_value_or_type_error(self) -> None:
         pytest.fail("RED")
