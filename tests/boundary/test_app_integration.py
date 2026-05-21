@@ -57,6 +57,18 @@ def test_app_output_preserves_lhs_2_5_meter() -> None:
         assert line.startswith("2.5 meter = ")
 
 
+def test_app_register_cubit_then_convert() -> None:
+    # Given: dynamic registration via register: command
+    app = UnitConverterApp()
+    code_reg, _, stderr_reg = app.run_line("register:cubit=0.4572:meter")
+    assert code_reg == 0
+    assert stderr_reg == ""
+    code, stdout, stderr = app.run_line("cubit:10")
+    assert code == 0
+    assert stderr == ""
+    assert "10 cubit = 4.6 meter" in stdout or "10 cubit = 4.5 meter" in stdout
+
+
 def test_app_yard_zero_all_targets_zero() -> None:
     # Given: value = 0 boundary
     app = UnitConverterApp()

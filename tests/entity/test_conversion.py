@@ -6,7 +6,7 @@ import pytest
 
 from entity.conversion_engine import ConversionEngine
 from entity.unit_registry import UnitRegistry
-from tests.helpers import assert_close
+from tests.helpers import FEET_RATIO, assert_close
 
 
 def test_convert_meter_2_5_to_feet_and_yard_raw(default_registry: UnitRegistry) -> None:
@@ -25,4 +25,4 @@ def test_convert_feet_1_to_meter_inverse_within_eps(default_registry: UnitRegist
     rows = engine.convert_all(source_unit="feet", source_amount=1.0)
     by_unit = {row.target_unit: row.target_amount for row in rows}
 
-    assert_close(by_unit["meter"], 0.3048)
+    assert_close(by_unit["meter"], 1.0 / FEET_RATIO)

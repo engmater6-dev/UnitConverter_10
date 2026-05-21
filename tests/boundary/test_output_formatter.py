@@ -9,12 +9,8 @@ from entity.unit_registry import UnitRegistry
 
 def _table_lines(registry: UnitRegistry, source_unit: str, source_amount: float) -> list[str]:
     engine = ConversionEngine(registry)
-    rows = engine.convert_all(source_unit=source_unit, source_amount=source_amount)
-    return OutputFormatter().format_table(
-        source_unit=source_unit,
-        source_amount=source_amount,
-        conversions=rows,
-    )
+    rows = engine.convert_all(source_unit, source_amount)
+    return OutputFormatter().format_table(rows).splitlines()
 
 
 def test_format_meter_2_5_preserves_lhs_and_rounds_targets_half_up(

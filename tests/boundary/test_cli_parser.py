@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from boundary.cli_input_parser import CliInputParser
+from boundary.cli_input_parser import CliInputParser, RegisterCommand
 from entity.errors import DomainError
 
 
@@ -50,6 +50,14 @@ def test_parse_invalid_unit_id_Meter_raises_domain_error(parser) -> None:
     with pytest.raises(DomainError) as exc:
         parser.parse("Meter:1")
     assert exc.value.code == "INVALID_UNIT_ID"
+
+
+def test_parse_register_command_returns_register_command(parser) -> None:
+    cmd = parser.parse("register:cubit=0.4572:meter")
+    assert isinstance(cmd, RegisterCommand)
+    assert cmd.unit_id == "cubit"
+    assert cmd.ratio == 0.4572
+    assert cmd.ref_unit == "meter"
 
 
 def test_parse_input_too_long_raises_domain_error(parser) -> None:

@@ -8,6 +8,7 @@ import sys
 import pytest
 
 from boundary.error_presenter import ErrorPresenter
+from entity.errors import DomainError
 
 
 @pytest.mark.parametrize(
@@ -53,3 +54,11 @@ def test_present_input_errors_stderr_contract_and_exit_one(
     assert exit_code == 1
     assert re.search(rf"code:\s*{re.escape(code)}", captured.err)
     assert f"message: {expected_message}" in captured.err
+
+
+def test_present_domain_error_returns_message() -> None:
+    presenter = ErrorPresenter()
+    message = presenter.present(DomainError("UNKNOWN_UNIT", "Unknown unit: parsec"))
+    assert message == "Unknown unit: parsec"
+    assert presenter.code_for(DomainError("UNKNOWN_UNIT", "x")) == "UNKNOWN_UNIT"
+    assert presenter.exit_code(DomainError("PARSE_ERROR", "bad")) == 2

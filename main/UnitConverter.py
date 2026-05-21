@@ -1,35 +1,21 @@
-def main():
-    input_str = input("Insert value for converting (ex: meter:2.5): ")
+"""Legacy CLI entry — delegates to BCE boundary layer (no inline conversion)."""
 
-    if ':' not in input_str:
-        print("Invalid format. Use unit:value (ex: meter:2.5)")
-        return
+from __future__ import annotations
 
-    unit, value_str = input_str.split(':', 1)
+from boundary.app import UnitConverterApp
 
-    try:
-        value = float(value_str)
-    except ValueError:
-        print(f"Invalid number: {value_str}")
-        return
 
-    if unit == "meter":
-        meter_value = value
-    elif unit == "feet":
-        meter_value = value / 3.28084
-    elif unit == "yard":
-        meter_value = value / 1.09361
-    else:
-        print(f"Unknown unit: {unit}")
-        return
+def main() -> None:
+    line = input("Insert value for converting (ex: meter:2.5): ")
+    app = UnitConverterApp()
+    exit_code, stdout, stderr = app.run_line(line)
+    if stdout:
+        print(stdout)
+    if stderr:
+        import sys
 
-    in_meters = meter_value
-    in_feet = meter_value * 3.28084
-    in_yards = meter_value * 1.09361
-
-    print(f"{value} {unit} = {in_meters} meter")
-    print(f"{value} {unit} = {in_feet} feet")
-    print(f"{value} {unit} = {in_yards} yard")
+        print(stderr, file=sys.stderr)
+    raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":
