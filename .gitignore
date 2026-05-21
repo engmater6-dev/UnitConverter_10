@@ -1,7 +1,18 @@
+# Archive — exclude from review and version control
+red_temp/
+
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.venv/
 venv/
-*.docx
+.venv/
+
+# OS / editor
+*.tmp
 ~$*
+Thumbs.db
+
+# Local-only artifacts
+*.docx
+copilot.docx

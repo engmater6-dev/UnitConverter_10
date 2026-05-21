@@ -256,7 +256,10 @@ file_structure:
 # ai_behavior
 ################################################################################
 ai_behavior:
+  ignore_paths:
+    - red_temp/
   principles:
+    - "red_temp/는 RED 단계 아카이브. 검토·구현·TODO·테스트 범위에서 제외."
     - "Source of Truth: doc/PRD.md §3.2·§3.3·§6·§7. README와 충돌 시 PRD 우선."
     - "레이어 위반 금지: entity는 boundary/data import 안 함."
     - "테스트 먼저: RED → GREEN → REFACTOR."
