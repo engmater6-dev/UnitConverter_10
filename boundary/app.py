@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-
 from boundary.cli_input_parser import CliInputParser, ConvertCommand, RegisterCommand
 from boundary.error_presenter import ErrorPresenter
 from boundary.output_formatter import OutputFormatter
@@ -46,14 +44,9 @@ class UnitConverterApp:
 
 
 def main() -> None:
-    line = input("Insert value for converting (ex: meter:2.5): ")
-    app = UnitConverterApp()
-    exit_code, stdout, stderr = app.run_line(line)
-    if stdout:
-        print(stdout)
-    if stderr:
-        print(stderr, file=sys.stderr)
-    raise SystemExit(exit_code)
+    from boundary.cli_driver import run_cli
+
+    run_cli()
 
 
 if __name__ == "__main__":
