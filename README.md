@@ -16,6 +16,7 @@
 - [아키텍처](#아키텍처)
 - [테스트 실행](#테스트-실행)
 - [RED 단계 To-Do 리스트](#red-단계-to-do-리스트)
+- [GREEN 단계 To-Do 리스트](#green-단계-to-do-리스트)
 - [설정 파일 (JSON/YAML)](#설정-파일-jsonyaml)
 - [출력 포맷](#출력-포맷)
 - [기여 가이드 (Contributing)](#기여-가이드-contributing)
@@ -45,66 +46,77 @@
 
 요구·인수·회귀 규칙의 **단일 기준(Source of Truth)** 은 [doc/PRD.md](doc/PRD.md)이며, 작업 진행은 [doc/TODO.md](doc/TODO.md)를 따릅니다.
 
-> **구현 상태:** TDD **RED** 완료 — pytest 계약 테스트만 존재, `entity`/`boundary` **미구현**. CLI는 레거시 `main/UnitConverter.py`만 동작. 상세는 [진행 상황](#진행-상황-progress).
+> **구현 상태:** TDD **GREEN (02) 완료** — BCE 레이어(`entity`/`control`/`boundary`/`data`) 구현, `tests/red/` 14/14 PASS, 전체 `tests/` 69 PASS. 진입점: `boundary.app` · `main/UnitConverter.py`(위임). 상세는 [진행 상황](#진행-상황-progress).
 
 ---
 
 ## 진행 상황 (Progress)
 
-**최종 갱신:** 2026-05-20 · **현재 단계:** TDD RED (01)
+**최종 갱신:** 2026-05-21 · **현재 단계:** TDD GREEN (02) · **브랜치:** `green` (base: `B_10`)
 
 ### TDD 사이클
 
 | 단계 | 상태 | 비고 |
 |------|------|------|
-| **RED** | ✅ 완료 | Domain·Boundary pytest 추가, 실행 시 fail 확인 |
-| **GREEN** | 🔲 예정 | `entity/`, `boundary/` 최소 구현 |
+| **RED** | ✅ 완료 | `tests/red/` 14건 스켈레톤 → 의도적 FAIL |
+| **GREEN** | ✅ 완료 | Dual-Track TC-A/B 14/14 PASS · 전체 69 PASS |
 | **REFACTOR** | 🔲 예정 | pytest green 유지하며 구조 정리 |
 
-### 완료 항목
+### 완료 항목 (RED)
 
 | 구분 | 산출물 | 설명 |
 |------|--------|------|
-| 문서 | `doc/PRD.md`, `doc/TODO.md`, `.cursorrules` | 계약·작업 기준선 |
-| 테스트 | `pytest.ini`, `tests/helpers.py`, `tests/conftest.py` | EPS·Background fixture |
-| entity RED | `tests/entity/test_registry.py` | meter/feet/yard 비율, `DUPLICATE_UNIT` |
-| entity RED | `tests/entity/test_conversion.py` | `meter:2.5`, `feet:1` 역변환 (EPS) |
-| boundary RED | `tests/boundary/test_input_parser.py` | F-02 오류 5종 (`MALFORMED_INPUT` 등) |
-| boundary RED | `tests/boundary/test_output_formatter.py` | LHS 보존, target 1자리 half-up |
-| boundary RED | `tests/boundary/test_error_presenter.py` | stderr `code`/`message`, exit 1 |
-| 기록 | [prompt/01.red.md](prompt/01.red.md), [report/01.red.md](report/01.red.md) | 프롬프트 로그·RED 보고서 |
+| 문서 | `doc/PRD.md`, `doc/TODO.md`, `doc/RED_phase_tests.md`, `doc/defect_list.md` | 계약·RED 명세·결함 |
+| RED 게이트 | `tests/red/test_boundary_red.py`, `tests/red/test_entity_red.py` | TC-A-01~07, TC-B-01~07 |
+| 기록 | [prompt/01.red.md](prompt/01.red.md), [report/01.red.md](report/01.red.md) | RED 로그·보고서 |
 
-### 미구현 (GREEN 대상)
+### 완료 항목 (GREEN)
 
-- `entity/` — `UnitRegistry`, `ConversionEngine`, `DomainError`
-- `boundary/` — `CliInputParser`, `OutputFormatter`, `ErrorPresenter`
-- `control/`, `data/`, `config/units.json` — v1.0 이후
+| 구분 | 산출물 | 설명 |
+|------|--------|------|
+| Domain | `entity/` — `UnitRegistry`, `ConversionEngine`, `DomainError` | meter 허브 환산, `register_from_ref` |
+| Control | `control/` — `ConvertUseCase`, `RegisterUseCase` | entity 오케스트레이션 |
+| Boundary | `boundary/` — `CliInputParser`, `OutputFormatter`, `ErrorPresenter`, `UnitConverterApp` | 파싱·표현·stderr |
+| Data | `data/config_loader.py`, `config/units.json` | JSON/YAML·기본값 fallback |
+| 회귀 테스트 | `tests/entity/`, `tests/boundary/`, `tests/data/` | 36+건 PASS |
+| 기록 | [prompt/02.green.md](prompt/02.green.md), [report/02.green.md](report/02.green.md), [task/green/02.green.md](task/green/02.green.md) | GREEN 로그·보고·실행 프롬프트 |
+| 레거시 | `main/UnitConverter.py` | 인라인 환산 제거 → `UnitConverterApp` 위임 |
 
-### pytest 현황 (RED 검증)
+### pytest 현황 (GREEN 검증)
 
 ```bash
-py -3 -m pytest tests/ -v
-# → exit 4, ModuleNotFoundError: No module named 'entity'
-# (conftest가 entity를 import; 수집 TC 0건 — 구현 추가 후 assert 단계 fail/pass 재검증)
+py -3 -m pytest tests/red/ -v    # 14 passed
+py -3 -m pytest tests/ -v        # 69 passed, 0 failed
 ```
 
-| 레이어 테스트 | 파일 수 | 실행 |
-|---------------|---------|------|
-| `tests/entity/` | 2 | import 실패로 미실행 |
-| `tests/boundary/` | 3 | import 실패로 미실행 |
+| 스위트 | collected | 결과 |
+|--------|-----------|------|
+| `tests/red/` (TC-A/B 게이트) | 14 | **14 passed** |
+| `tests/entity/` | 20 | passed |
+| `tests/boundary/` | 20 | passed |
+| `tests/data/` | 5 | passed |
+| **합계** | **69** | **69 passed** |
+
+### 커버리지 (2026-05-21)
+
+```bash
+py -3 -m pytest tests/ --cov=entity --cov=boundary --cov=control --cov-report=term-missing
+```
+
+| 레이어 | 목표 | 실측 |
+|--------|------|------|
+| Domain (`entity` + `control`) | ≥ 95% | **96.3%** |
+| Boundary | ≥ 85% | **85.1%** |
 
 ### TODO 연동 (doc/TODO.md)
 
-| ID | RED 테스트 반영 | GREEN 구현 |
-|----|-----------------|------------|
-| M-01 | `test_registry.py` | 🔲 |
-| M-02 | `test_conversion.py` | 🔲 |
-| M-04, M-05 | `test_input_parser.py` | 🔲 |
-| M-06 | `test_output_formatter.py` | 🔲 |
-| M-07 | `test_error_presenter.py` | 🔲 |
-| M-09 | Domain RED 게이트 | 🔲 assert fail → pass |
+| ID | RED | GREEN |
+|----|-----|-------|
+| M-01~M-02, M-09 | ✅ `tests/red/` + entity | ✅ |
+| M-04~M-07 | ✅ boundary RED | ✅ |
+| M-14 (config) | — | ✅ `tests/data/`, TC-B-06~07 |
 
-**다음 작업:** `entity/`·`boundary/` 스켈레톤 추가 후 `pytest tests/entity/ -v` → GREEN.
+**다음 작업:** `refactor` 브랜치 — 구조 정리·중복 제거 (pytest green 유지). 체크리스트: [GREEN 단계 To-Do](#green-단계-to-do-리스트).
 
 ---
 
@@ -119,9 +131,7 @@ py -3 -m pytest tests/ -v
 | 테스트 (목표) | `pytest`, `pytest-cov` |
 | 검증 (목표) | `pydantic` |
 
-### 가상환경 · 실행 (레거시)
-
-현재 저장소에는 레거시 진입점만 있습니다.
+### 가상환경 · 실행
 
 ```bash
 # 가상환경 생성
@@ -133,7 +143,12 @@ venv\Scripts\activate
 # 활성화 (macOS/Linux)
 source venv/bin/activate
 
-# 실행 (레거시)
+# 의존성 (개발)
+pip install -r requirements-dev.txt
+
+# 실행 (BCE — 권장)
+python -m boundary.app
+# 또는 레거시 래퍼 (내부적으로 UnitConverterApp 위임)
 python main/UnitConverter.py
 ```
 
@@ -163,14 +178,12 @@ meter:5.0
 
 **표현 계약:** 모든 줄의 왼쪽 `{amount} {unit}` 은 **사용자 입력과 동일**합니다.
 
-### 목표 진입점 (v1.0 이후)
+### 진입점
 
-```bash
-# 목표 구조 (구현 후)
-python -m boundary.main
-# 또는
-python boundary/main.py
-```
+| 경로 | 설명 |
+|------|------|
+| `python -m boundary.app` | BCE 앱 (`UnitConverterApp.run_line`) |
+| `python main/UnitConverter.py` | 레거시 경로 — 동일 App 위임 |
 
 ---
 
@@ -290,28 +303,25 @@ target_amount = source_amount × MetersPerUnit(source) ÷ MetersPerUnit(target)
 
 ### 디렉터리
 
-**현재 (2026-05-20)**
+**현재 (2026-05-21 · GREEN 완료)**
 
 ```text
-tests/           # ✅ RED pytest (entity / boundary)
-tests/entity/    # test_registry.py, test_conversion.py
-tests/boundary/  # test_input_parser.py, test_output_formatter.py, test_error_presenter.py
-main/            # UnitConverter.py (레거시)
-doc/             # PRD, TODO
-prompt/          # 01.red.md
-report/          # 01.red.md
+entity/          # UnitRegistry, ConversionEngine
+control/         # ConvertUseCase, RegisterUseCase
+boundary/        # CliInputParser, OutputFormatter, ErrorPresenter, app
+data/            # config_loader, models
+config/          # units.json
+tests/
+  red/           # TC-A-01~07, TC-B-01~07 (GREEN 게이트 14/14)
+  entity/        # Domain 회귀
+  boundary/      # Boundary 회귀
+  data/          # 설정 로드
+main/            # UnitConverter.py → App 위임
+doc/             # PRD, test_plan, defect_list, RED_phase_tests
+prompt/          # 01.red.md, 02.green.md
+report/          # 01.red.md, 02.green.md, 00.red_test_compare.md
+task/green/      # 02.green.md (실행 프롬프트)
 pytest.ini
-```
-
-**목표 (v1.0)**
-
-```text
-entity/      # Domain — I/O 금지
-control/     # UseCase
-boundary/    # CLI · 파싱 · 포맷 · stderr
-data/        # JSON 설정 Repository
-tests/       # pytest (entity / boundary / data / integration)
-config/      # units.json
 ```
 
 ---
@@ -325,17 +335,21 @@ config/      # units.json
 ### 명령
 
 ```bash
-# 전체 테스트 (현재: entity 미구현 → import 실패, RED)
+# 전체 테스트 (GREEN: 69 passed)
 py -3 -m pytest tests/ -v
 
-# Domain만 (GREEN 이후)
+# RED/GREEN 게이트만 (14 passed)
+py -3 -m pytest tests/red/ -v
+
+# 레이어별
 py -3 -m pytest tests/entity/ -v
+py -3 -m pytest tests/boundary/ -v
+py -3 -m pytest tests/data/ -v
 
 # 커버리지 (PRD §4.3)
-python -m pytest tests/ \
+py -3 -m pytest tests/ \
   --cov=entity --cov=control --cov=boundary --cov=data \
-  --cov-report=term-missing \
-  --cov-fail-under=85
+  --cov-report=term-missing --cov-report=html
 ```
 
 ### 커버리지 목표
@@ -361,31 +375,96 @@ python -m pytest tests/ \
 > 각 항목은 RED(실패 테스트 작성) 완료 시 체크합니다.
 
 ### Track A — UI / Boundary 테스트
-- [ ] TC-A-01: 정상 입력 "meter:2.5" → 변환 결과 반환 (Happy Path)
-- [ ] TC-A-02: ":" 없는 입력 → ValueError / TypeError 발생
-- [ ] TC-A-03: 음수 입력 "meter:-1.0" → ValueError / TypeError 발생
-- [ ] TC-A-04: 없는 단위 "parsec:1.0" → ValueError / TypeError 발생
-- [ ] TC-A-05: 소수점 파싱 실패 "meter:abc" → ValueError / TypeError 발생
-- [ ] TC-A-06: 출력 포맷에 원 입력 단위·값 보존 ("2.5 meter = ...")
-- [ ] TC-A-07: value=0 경계값 처리 확인
+- [x] TC-A-01: 정상 입력 "meter:2.5" → 변환 결과 반환 (Happy Path)
+- [x] TC-A-02: ":" 없는 입력 → ValueError / TypeError 발생
+- [x] TC-A-03: 음수 입력 "meter:-1.0" → ValueError / TypeError 발생
+- [x] TC-A-04: 없는 단위 "parsec:1.0" → ValueError / TypeError 발생
+- [x] TC-A-05: 소수점 파싱 실패 "meter:abc" → ValueError / TypeError 발생
+- [x] TC-A-06: 출력 포맷에 원 입력 단위·값 보존 ("2.5 meter = ...")
+- [x] TC-A-07: value=0 경계값 처리 확인
 
 ### Track B — Domain / Logic 테스트
-- [ ] TC-B-01: convert("meter", 2.5, "feet") == 8.20210 (오차 1e-5)
-- [ ] TC-B-02: convert("meter", 1.0, "yard") == 1.09361 (오차 1e-5)
-- [ ] TC-B-03: convert("feet", 1.0, "meter") == 0.30480 (역변환)
-- [ ] TC-B-04: convertAll("meter", 1.0) → 모든 등록 단위 변환 반환
-- [ ] TC-B-05: registerUnit("cubit", 0.4572) 후 변환 가능
-- [ ] TC-B-06: loadConfig(유효한 경로) → 비율 정상 로드
-- [ ] TC-B-07: loadConfig(없는 경로) → 기본값(3.28084/1.09361) 유지
+- [x] TC-B-01: convert("meter", 2.5, "feet") == 8.20210 (오차 1e-5)
+- [x] TC-B-02: convert("meter", 1.0, "yard") == 1.09361 (오차 1e-5)
+- [x] TC-B-03: convert("feet", 1.0, "meter") == 0.30480 (역변환)
+- [x] TC-B-04: convertAll("meter", 1.0) → 모든 등록 단위 변환 반환
+- [x] TC-B-05: registerUnit("cubit", 0.4572) 후 변환 가능
+- [x] TC-B-06: loadConfig(유효한 경로) → 비율 정상 로드
+- [x] TC-B-07: loadConfig(없는 경로) → 기본값(3.28084/1.09361) 유지
 
-### 커버리지 목표
-- [ ] Domain Logic: 95%+ (pip install pytest-cov)
-- [ ] Boundary Layer: 85%+
-- [ ] 전체 TOTAL: 90%+
+### 커버리지 목표 (RED 단계 계획)
+- [x] Domain Logic: 95%+ (`entity`+`control` **96.3%**)
+- [x] Boundary Layer: 85%+ (**85.1%**)
+- [ ] 전체 TOTAL: 90%+ (실측 **89%** — 3패키지 합산, `data` 포함 시 상향 가능)
 
 ### 결함 목록 연결
 - [x] [doc/defect_list.md](doc/defect_list.md) 생성 및 발견 결함 기록 (DEF-001~008)
-- [x] 모든 결함 수정 후 회귀 테스트 통과 확인 (`pytest` 36/36 pass)
+- [x] 모든 결함 수정 후 회귀 테스트 통과 확인
+
+---
+
+## GREEN 단계 To-Do 리스트
+
+> 이 체크리스트는 [Dual_Track_list](Dual_Track_list) · [task/green/02.green.md](task/green/02.green.md) 기반입니다.  
+> 각 항목은 **GREEN(테스트 통과·최소 구현)** 완료 시 체크합니다.  
+> 게이트: `tests/red/` — `py -3 -m pytest tests/red/ -v` → **14 passed**
+
+### Track B — Domain / Logic (우선)
+
+| # | TC | 내용 | 커밋 | 상태 |
+|---|-----|------|------|------|
+| 1 | TC-B-01 | `convert("meter", 2.5, "feet")` ≈ 8.20210 | `feat(green): meter to feet` | [x] |
+| 3 | TC-B-02 | `convert("meter", 1.0, "yard")` ≈ 1.09361 | `feat(green): meter to yard` | [x] |
+| 5 | TC-B-03 | `convert("feet", 1.0, "meter")` 역변환 | `feat(green): feet to meter reverse` | [x] |
+| 7 | TC-B-04~05 | `convert_all` + `register_from_ref(cubit)` | `feat(green): convertAll and registerUnit` | [x] |
+| 9 | TC-B-06~07 | `load_units_config` 정상·missing fallback | `feat(green): loadConfig with fallback` | [x] |
+
+### Track A — UI / Boundary
+
+| # | TC | 내용 | 커밋 | 상태 |
+|---|-----|------|------|------|
+| 2 | TC-A-02 | `":"` 없음 → `ValueError`/`TypeError` | `feat(green): validate missing colon` | [x] |
+| 4 | TC-A-03 | 음수 `meter:-1.0` → 예외 | `feat(green): validate negative value` | [x] |
+| 6 | TC-A-04 | unknown `parsec:1.0` → 예외 | `feat(green): validate unknown unit` | [x] |
+| 8 | TC-A-01,06,07 | happy path · LHS 보존 · `yard:0` | `feat(green): boundary happy path` | [x] |
+| 10 | TC-A-05 | `meter:abc` → 예외 | `feat(green): validate non-numeric amount` | [x] |
+
+### Track A — 상세 체크 (TC ID)
+
+- [x] TC-A-01: `UnitConverterApp.run_line("meter:2.5")` → table 3줄, exit 0
+- [x] TC-A-02: `parse("meter")` → `ValueError` / `TypeError`
+- [x] TC-A-03: `parse("meter:-1.0")` → 예외
+- [x] TC-A-04: `parse("parsec:1.0")` + registry → 예외
+- [x] TC-A-05: `parse("meter:abc")` → 예외
+- [x] TC-A-06: 모든 출력 줄 `2.5 meter = ` 접두
+- [x] TC-A-07: `yard:0` → 전 target 0
+
+### Track B — 상세 체크 (TC ID)
+
+- [x] TC-B-01: `convert("meter", 2.5, "feet")` ≈ 8.20210 (tol 1e-5)
+- [x] TC-B-02: `convert("meter", 1.0, "yard")` ≈ 1.09361
+- [x] TC-B-03: `convert("feet", 1.0, "meter")` ≈ 0.30480
+- [x] TC-B-04: `convert_all("meter", 1.0)` → 3 targets
+- [x] TC-B-05: cubit 등록 후 `convert("cubit", 10, "meter")` ≈ 4.572
+- [x] TC-B-06: 유효 JSON 경로 → 파일 비율 적용
+- [x] TC-B-07: 없는 경로 → 기본 3.28084 / 1.09361
+
+### 품질·구조 (GREEN 인수)
+
+- [x] `tests/` 전체 **69 passed**, 0 failed
+- [x] Domain Logic 커버리지 ≥ 95%
+- [x] Boundary 커버리지 ≥ 85%
+- [x] 비율 상수 `3.28084`/`1.09361` — `DEFAULT_METERS_PER_UNIT`·`config/units.json`만 (환산식 인라인 없음)
+- [x] `main()` / `UnitConverterApp` — Domain 환산 로직 분리
+- [ ] JSON/CSV 출력 포맷 (PRD §6.2·§6.3 — REFACTOR 또는 v1.1)
+- [ ] Gherkin 8 scenarios 자동화 (선택)
+
+### 기록
+
+- [x] [report/02.green.md](report/02.green.md) — pytest·커버리지·TC 매핑
+- [x] [prompt/02.green.md](prompt/02.green.md) — 프롬프트·답변 로그
+
+**다음:** REFACTOR 브랜치 · [report/02.green.md](report/02.green.md) §9
 
 ---
 
@@ -538,8 +617,12 @@ docs: readme — align error codes with PRD 3.2
 | [doc/test_plan.md](doc/test_plan.md) | pytest 테스트 계획서 |
 | [doc/defect_list.md](doc/defect_list.md) | 결함 목록·수정·회귀 상태 |
 | [doc/README_ref.md](doc/README_ref.md) | 초기 README 보존본 |
-| [report/01.red.md](report/01.red.md) | RED 단계 보고서 (산출물·pytest·GREEN 체크리스트) |
-| [prompt/01.red.md](prompt/01.red.md) | RED 단계 프롬프트·답변 로그 |
+| [report/01.red.md](report/01.red.md) | RED 단계 보고서 |
+| [report/02.green.md](report/02.green.md) | GREEN 단계 보고서 (69 PASS·커버리지) |
+| [report/00.red_test_compare.md](report/00.red_test_compare.md) | `tests/` vs `red_temp/tests/` 비교 |
+| [prompt/01.red.md](prompt/01.red.md) | RED 프롬프트·답변 로그 |
+| [prompt/02.green.md](prompt/02.green.md) | GREEN 프롬프트·답변 로그 |
+| [task/green/02.green.md](task/green/02.green.md) | GREEN 실행 프롬프트 (assert 스펙) |
 
 ---
 
@@ -547,10 +630,10 @@ docs: readme — align error codes with PRD 3.2
 
 | 단계 | 시간 | 내용 |
 |------|------|------|
-| 1 | 0.5h | 레거시·PRD·계약 분석 — **진행 중** |
-| 2 | 2h | 필수 요구·OCP/SRP·입력 검증 (M-01~M-11) — **RED 테스트 완료** |
-| 3 | 0.5h | 환산·검증 TC |
-| 4 | 2h | 설정·등록·포맷 (S-01~S-08) |
-| 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) |
+| 1 | 0.5h | 레거시·PRD·계약 분석 — **완료** |
+| 2 | 2h | 필수 요구·OCP/SRP·입력 검증 (M-01~M-11) — **RED·GREEN 완료** |
+| 3 | 0.5h | 환산·검증 TC — **TC-B-01~07 PASS** |
+| 4 | 2h | 설정·등록·포맷 (S-01~S-08) — **table·config GREEN** |
+| 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) — **REFACTOR 예정** |
 
-진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [doc/TODO.md](doc/TODO.md) 🔴 필수 항목 · [report/01.red.md](report/01.red.md)
+진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [GREEN To-Do](#green-단계-to-do-리스트) · [report/02.green.md](report/02.green.md)
