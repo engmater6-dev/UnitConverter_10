@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from entity.errors import DomainError
 
-# factors: units per 1 meter (1 meter = 3.28084 feet; 1 meter = 1.09361 yard)
+# meters_per_unit: how many of each unit equal 1 meter (meter hub)
+METERS_PER_METER = 1.0
+METER_TO_FEET = 3.28084
+METER_TO_YARD = 1.09361
+
 DEFAULT_METERS_PER_UNIT: dict[str, float] = {
-    "meter": 1.0,
-    "feet": 3.28084,
-    "yard": 1.09361,
+    "meter": METERS_PER_METER,
+    "feet": METER_TO_FEET,
+    "yard": METER_TO_YARD,
 }
 
 

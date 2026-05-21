@@ -1,0 +1,8 @@
+ID	Track	리팩토링 목표	커밋 메시지
+R-L1	Domain	if-else 체인 → UnitRegistry (Map/Dict 기반)	refactor(domain): replace if-else with UnitRegistry
+R-L2	Domain	3.28084/1.09361 → METER_TO_FEET/METER_TO_YARD 상수	refactor(domain): extract conversion ratio constants
+R-L3	Domain	convert() 함수 추출 (meter 허브 단일 경로)	refactor(domain): extract convert() with meter hub
+R-L4	Domain	convertAll() 분리 (Registry 순회)	refactor(domain): extract convertAll() from main
+R-U1	Boundary	InputParser 분리 (파싱·검증 책임 분리)	refactor(boundary): extract InputParser
+R-U2	Boundary	예외 메시지 상수화 (ErrorCode 단일화)	refactor(boundary): extract error message constants
+R-U3	Boundary	OutputFormatter 분리 (출력 포맷 책임 분리)	refactor(boundary): extract OutputFormatter
