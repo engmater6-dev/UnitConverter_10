@@ -18,6 +18,7 @@
 - [RED 단계 To-Do 리스트](#red-단계-to-do-리스트)
 - [Golden Master 회귀 안전장치](#golden-master-회귀-안전장치)
 - [GREEN 단계 To-Do 리스트](#green-단계-to-do-리스트)
+- [New Feature (Bonus) To-Do 리스트](#new-feature-bonus-to-do-리스트)
 - [REFACTOR 단계 To-Do 리스트](#refactor-단계-to-do-리스트)
 - [설정 파일 (JSON/YAML)](#설정-파일-jsonyaml)
 - [출력 포맷](#출력-포맷)
@@ -48,13 +49,13 @@
 
 요구·인수·회귀 규칙의 **단일 기준(Source of Truth)** 은 [doc/PRD.md](doc/PRD.md)이며, 작업 진행은 [doc/TODO.md](doc/TODO.md)를 따릅니다.
 
-> **구현 상태:** TDD **REFACTOR 완료** — BCE + Dual-Track 리팩터(5커밋), `tests/red/` 14/14 PASS, 전체 `tests/` **78 PASS**, Golden Master 4/4 PASS. 진입점: `python -m boundary.app` · `main/UnitConverter.py` → `cli_driver.run_cli()`. 상세는 [진행 상황](#진행-상황-progress).
+> **구현 상태:** TDD **REFACTOR 완료** + **New Feature (Bonus) GREEN 완료** — BCE + Dual-Track 리팩터(5커밋), `tests/red/` 14/14 PASS, Bonus BT-01~06 PASS, 전체 `tests/` **84 PASS**, Golden Master 4/4 PASS. 진입점: `python -m boundary.app` · `main/UnitConverter.py` → `cli_driver.run_cli()` · Bonus: `decaying_unit.registerUnit()`. 상세는 [진행 상황](#진행-상황-progress).
 
 ---
 
 ## 진행 상황 (Progress)
 
-**최종 갱신:** 2026-05-21 · **현재 단계:** TDD **REFACTOR 완료** · **브랜치:** `refactor`
+**최종 갱신:** 2026-05-21 · **현재 단계:** **New Feature (Bonus) GREEN 완료** · **브랜치:** `new_feature` @ `c708527`
 
 ### TDD 사이클
 
@@ -63,6 +64,7 @@
 | **RED** | ✅ 완료 | `tests/red/` 14건 — TC-A-01~07, TC-B-01~07 |
 | **GREEN** | ✅ 완료 | BCE 최소 구현 · Dual-Track 14/14 PASS |
 | **REFACTOR** | ✅ 완료 | pytest green 유지 · 5 refactor/test 커밋 · [REFACTOR To-Do](#refactor-단계-to-do-리스트) |
+| **New Feature (Bonus)** | ✅ GREEN | `decaying_unit` · BT-01~06 · `pytest -m bonus` 6/6 PASS · REFACTOR **미수행** |
 
 ### 완료 항목 (RED)
 
@@ -99,25 +101,37 @@
 
 **REFACTOR 커밋 (`refactor` 브랜치):** `cc67a99` · `dc3de28` · `510cfa3` · `8451f3d` · `508a10e`
 
-### pytest 현황 (REFACTOR 검증)
+### 완료 항목 (New Feature · Bonus)
+
+| 구분 | 산출물 | 설명 |
+|------|--------|------|
+| API | `decaying_unit.py` | `registerUnit` · `convert` · `convertAll` (OCP Registry 래퍼) |
+| 테스트 | `tests/test_decaying_unit.py` | BT-01~06 · `@pytest.mark.bonus` |
+| 브랜치 | `new_feature` | `feature` @ `6ddbbb8` 분기 · `origin/new_feature` |
+| 커밋 | `c708527` | `feat(feature): add registerUnit with OCP registry` |
+| 기록 | [prompt/06.new_feature.md](prompt/06.new_feature.md), [report/06.new_feature.md](report/06.new_feature.md) | Bonus RED/GREEN 로그·보고서 |
+
+### pytest 현황 (New Feature 검증 · 2026-05-21)
 
 ```bash
 py -3 -m pytest tests/red/ -v           # 14 passed (TC-A/B)
 py -3 -m pytest -m golden_master -v    # 4 passed
-py -3 -m pytest tests/ -v              # 78 passed, 0 failed
-python scripts/generate_golden_master.py --check
+py -3 -m pytest -m bonus -v            # 6 passed (BT-01~06)
+py -3 -m pytest tests/ -v              # 84 passed, 0 failed
+py -3 scripts/generate_golden_master.py --check
 ```
 
 | 스위트 | collected | 결과 |
 |--------|-----------|------|
 | `tests/red/` (TC-A/B 게이트) | 14 | **14 passed** |
-| `tests/entity/` | 20 | passed |
-| `tests/boundary/` | 25 | passed (CLI driver 5건 포함) |
+| `tests/entity/` | 24 | passed |
+| `tests/boundary/` | 31 | passed (CLI driver 5건 포함) |
 | `tests/data/` | 5 | passed |
+| `tests/test_decaying_unit.py` (Bonus) | 6 | **6 passed** |
 | `tests/test_golden_master.py` (GM) | 4 | **4 passed** |
-| **합계** | **78** | **78 passed** |
+| **합계** | **84** | **84 passed** |
 
-### 커버리지 (REFACTOR 검증 · 2026-05-21)
+### 커버리지 (New Feature 검증 · 2026-05-21)
 
 ```bash
 py -3 -m pytest tests/ --cov=entity --cov=control --cov=boundary --cov-report=term-missing --cov-report=html
@@ -127,28 +141,33 @@ py -3 -m pytest tests/ --cov=entity --cov=control --cov=boundary --cov-report=te
 
 | 레이어 | 목표 | 실측 |
 |--------|------|------|
-| Domain (`entity` + `control`) | ≥ 95% | **96.7%** |
+| Domain (`entity`) | ≥ 95% | **97.0%** |
 | Boundary | ≥ 85% | **90.2%** |
+| Control | — | 96.1% |
 
-### 구조 검증 (REFACTOR 인수)
+### 구조 검증 (New Feature 인수)
 
 | 항목 | 상태 |
 |------|------|
 | TC-A-01~07 · TC-B-01~07 | ✅ PASS |
+| BT-01~06 (Bonus) | ✅ PASS |
 | Golden Master stdout 불변 | ✅ PASS + `--check` OK |
+| `registerUnit("cubit", -1.0)` | ✅ `ValueError` (비율 > 0) |
+| BT-06 meter→feet 회귀 | ✅ 3.28084 유지 (cubit 등록 후) |
 | 단위별 `if-else` 환산 분기 | ✅ 없음 (`UnitRegistry` + `convert_all` 순회) |
 | `3.28084` / `1.09361` 프로덕션 인라인 | ✅ `METER_TO_*` 상수·`config/units.json`만 |
 | Domain / Boundary 분리 | ✅ Logic=`entity`+`control` · UI=`boundary` |
 
 ### TODO 연동 (doc/TODO.md)
 
-| ID | RED | GREEN | REFACTOR |
-|----|-----|-------|----------|
-| M-01~M-02, M-09 | ✅ | ✅ | ✅ Registry·상수 |
-| M-04~M-07 | ✅ | ✅ | ✅ Parser·Formatter·에러 상수 |
-| M-14 (config) | — | ✅ | ✅ |
+| ID | RED | GREEN | REFACTOR | New Feature |
+|----|-----|-------|----------|-------------|
+| M-01~M-02, M-09 | ✅ | ✅ | ✅ Registry·상수 | ✅ `decaying_unit` 래퍼 |
+| M-04~M-07 | ✅ | ✅ | ✅ Parser·Formatter·에러 상수 | — |
+| M-14 (config) | — | ✅ | ✅ | — |
+| Bonus BT-01~06 | ✅ | ✅ | — (미수행) | ✅ |
 
-**다음 작업 (선택):** PR 머지 · GM-08 branch protection · JSON/CSV 출력 (v1.1) · [report/04.refactor.md](report/04.refactor.md) 작성.
+**다음 작업 (선택):** `git push origin new_feature` · PR 머지 · GM-08 branch protection · JSON/CSV 출력 (v1.1) · Bonus BCE 통합 REFACTOR.
 
 ---
 
@@ -323,9 +342,10 @@ flowchart TB
 ### 새 단위 추가 (코드 최소화)
 
 1. **설정:** `config/units.json` 의 `units[]` 에 `{ "id": "...", "meters_per_unit": ... }` 추가  
-2. **또는 런타임:** `register:new_unit=ratio:ref_unit` 입력  
-3. **검증:** `pytest tests/entity/` — 기존 환산 TC는 수정 없이 pass  
-4. **금지:** `ConversionEngine` 에 `if unit == "new":` 분기 추가  
+2. **CLI 런타임:** `register:new_unit=ratio:ref_unit` 입력  
+3. **Bonus API:** `decaying_unit.registerUnit("cubit", 0.4572)` — `1 cubit = 0.4572` meter  
+4. **검증:** `pytest tests/entity/` · `pytest -m bonus -v` — 기존 환산 TC 수정 없이 pass  
+5. **금지:** `ConversionEngine` 에 `if unit == "new":` 분기 추가  
 
 환산식 (단일 경로):
 
@@ -335,29 +355,31 @@ target_amount = source_amount × MetersPerUnit(source) ÷ MetersPerUnit(target)
 
 ### 디렉터리
 
-**현재 (2026-05-21 · REFACTOR 완료)**
+**현재 (2026-05-21 · New Feature GREEN 완료)**
 
 ```text
 entity/          # UnitRegistry, ConversionEngine, METER_TO_FEET/YARD
 control/         # ConvertUseCase, RegisterUseCase, RunLineUseCase
 boundary/        # CliInputParser, OutputFormatter, ErrorPresenter, error_codes, cli_driver, app
 data/            # config_loader, models
+decaying_unit.py # Bonus: registerUnit / convert / convertAll (OCP Registry 래퍼)
 config/          # units.json
 tests/
   red/           # TC-A-01~07, TC-B-01~07 (14/14 PASS)
   entity/        # Domain 회귀
   boundary/      # Boundary + test_cli_driver (exit/stderr)
   data/          # 설정 로드
+  test_decaying_unit.py   # BT-01~06 (bonus, 6/6 PASS)
   test_golden_master.py
   golden_master_expected.txt
 main/            # UnitConverter.py → cli_driver.run_cli()
 scripts/         # generate_golden_master.py
 doc/             # PRD, test_plan, defect_list, RED_phase_tests
-prompt/          # 01.red.md, 02.green.md, 03.golen_master.md, 04.refactor.md
-report/          # 01~04, 00.red_test_compare.md
+prompt/          # 01~06 (06.new_feature.md)
+report/          # 01~06, 00.red_test_compare.md
 refactoring_track_list
 task/green/      # 02.green.md
-pytest.ini
+pytest.ini       # markers: red, golden_master, bonus
 .github/workflows/golden_master.yml
 ```
 
@@ -372,11 +394,14 @@ pytest.ini
 ### 명령
 
 ```bash
-# 전체 테스트 (REFACTOR: 78 passed)
+# 전체 테스트 (84 passed)
 py -3 -m pytest tests/ -v
 
 # RED/GREEN 게이트만 (14 passed)
 py -3 -m pytest tests/red/ -v
+
+# Bonus 신규 기능 (BT-01~06, 6 passed)
+py -3 -m pytest -m bonus -v
 
 # 레이어별
 py -3 -m pytest tests/entity/ -v
@@ -512,7 +537,7 @@ py -3 -m pytest tests/ \
 
 ### 품질·구조 (GREEN 인수)
 
-- [x] `tests/` 전체 **78 passed**, 0 failed (REFACTOR 후)
+- [x] `tests/` 전체 **84 passed**, 0 failed (New Feature 후)
 - [x] Domain Logic 커버리지 ≥ 95%
 - [x] Boundary 커버리지 ≥ 85%
 - [x] 비율 상수 `3.28084`/`1.09361` — `DEFAULT_METERS_PER_UNIT`·`config/units.json`만 (환산식 인라인 없음)
@@ -525,13 +550,46 @@ py -3 -m pytest tests/ \
 - [x] [report/02.green.md](report/02.green.md) — pytest·커버리지·TC 매핑
 - [x] [prompt/02.green.md](prompt/02.green.md) — 프롬프트·답변 로그
 
-**상태:** GREEN 인수 완료. REFACTOR는 [REFACTOR 단계 To-Do](#refactor-단계-to-do-리스트) 참고.
+**상태:** GREEN 인수 완료. REFACTOR는 [REFACTOR 단계 To-Do](#refactor-단계-to-do-리스트) 참고. Bonus는 [New Feature To-Do](#new-feature-bonus-to-do-리스트) 참고.
 
 ### GREEN 후속 (미완 · v1.1 또는 별도 스프린트)
 
 - [ ] JSON/CSV 출력 포맷 (PRD §6.2·§6.3)
 - [ ] Gherkin 8 scenarios 자동화 (선택)
 - [ ] `format:table` / `format:json` / `format:csv` CLI 명령 (PRD §3.1)
+
+---
+
+## New Feature (Bonus) To-Do 리스트
+
+> `decaying_unit` 모듈 · [report/06.new_feature.md](report/06.new_feature.md) · 브랜치 `new_feature`  
+> 게이트: `py -3 -m pytest -m bonus -v` → **6 passed**
+
+### Bonus 테스트 (BT)
+
+| TC | 내용 | 상태 |
+|----|------|------|
+| BT-01 | `registerUnit("cubit", 0.4572)` 후 cubit→meter ≈ 0.4572 | [x] |
+| BT-02 | meter→cubit 역변환 ≈ 2.1872 | [x] |
+| BT-03 | cubit→feet 교차 변환 ≈ 1.4997 | [x] |
+| BT-04 | 음수 비율 `-1.0` → `ValueError` / `TypeError` | [x] |
+| BT-05 | `convertAll("cubit", 1.0)` → meter/feet/yard/cubit 4단위 | [x] |
+| BT-06 | cubit 등록 후 meter→feet = 3.28084 불변 (회귀) | [x] |
+
+### RED · GREEN
+
+- [x] RED: `decaying_unit.py` 스텁 + `tests/test_decaying_unit.py` → 6 failed
+- [x] GREEN: `UnitRegistry` + `ConversionEngine` OCP 래퍼 · `convert()` 시그니처 유지
+- [x] 커밋: `feat(feature): add registerUnit with OCP registry` (`c708527`)
+- [ ] REFACTOR: `decaying_unit` → BCE control/entity 통합 (선택 · 미수행)
+
+### 인수 체크
+
+- [x] `pytest -m bonus -v` → 6 passed
+- [x] `pytest tests/ -v` → 84 passed (TC-A/B + GM + 기존 회귀)
+- [x] Golden Master 4/4 + `--check` OK
+- [x] Domain ≥ 95% · Boundary ≥ 85%
+- [x] [prompt/06.new_feature.md](prompt/06.new_feature.md) · [report/06.new_feature.md](report/06.new_feature.md)
 
 ---
 
@@ -566,7 +624,7 @@ py -3 -m pytest tests/ \
 
 ### REFACTOR 인수 체크
 
-- [x] `py -3 -m pytest tests/ -v` → 78 passed
+- [x] `py -3 -m pytest tests/ -v` → 84 passed
 - [x] `py -3 -m pytest tests/red/ -v` → TC-A/B 14 passed
 - [x] `py -3 -m pytest -m golden_master -v` → 4 passed
 - [x] `python scripts/generate_golden_master.py --check` → OK
@@ -728,12 +786,16 @@ docs: readme — align error codes with PRD 3.2
 | [report/02.green.md](report/02.green.md) | GREEN 단계 보고서 |
 | [report/03.golen_master.md](report/03.golen_master.md) | Golden Master 보고서 |
 | [report/04.refactor.md](report/04.refactor.md) | REFACTOR 보고서 (78 PASS·커버리지·5커밋) |
+| [report/05.fature.md](report/05.fature.md) | Feature Phase 종합 보고서 |
+| [report/06.new_feature.md](report/06.new_feature.md) | New Feature (Bonus) RED/GREEN 보고서 (84 PASS) |
 | [refactoring_track_list](refactoring_track_list) | REFACTOR 트랙·커밋 매핑 |
 | [report/00.red_test_compare.md](report/00.red_test_compare.md) | `tests/` vs `red_temp/tests/` 비교 |
 | [prompt/01.red.md](prompt/01.red.md) | RED 프롬프트·답변 로그 |
 | [prompt/02.green.md](prompt/02.green.md) | GREEN 프롬프트·답변 로그 |
 | [prompt/03.golen_master.md](prompt/03.golen_master.md) | Golden Master 프롬프트·답변 로그 |
 | [prompt/04.refactor.md](prompt/04.refactor.md) | REFACTOR 프롬프트·답변 로그 |
+| [prompt/05.fature.md](prompt/05.fature.md) | Feature Phase 프롬프트 로그 |
+| [prompt/06.new_feature.md](prompt/06.new_feature.md) | New Feature (Bonus) 프롬프트 로그 |
 | [task/green/02.green.md](task/green/02.green.md) | GREEN 실행 프롬프트 (assert 스펙) |
 
 ---
@@ -747,5 +809,6 @@ docs: readme — align error codes with PRD 3.2
 | 3 | 0.5h | 환산·검증 TC — **TC-B-01~07 PASS** |
 | 4 | 2h | 설정·등록·포맷 (S-01~S-08) — **table·config GREEN** |
 | 5 | 1h | 회고·인수 (G-01~G-05, AC, Gherkin) — **REFACTOR 완료** |
+| 6 | — | Bonus `registerUnit` (BT-01~06) — **GREEN 완료** (`new_feature`) |
 
-진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [REFACTOR To-Do](#refactor-단계-to-do-리스트) · [report/03.golen_master.md](report/03.golen_master.md)
+진행 상황: [진행 상황 (Progress)](#진행-상황-progress) · [New Feature To-Do](#new-feature-bonus-to-do-리스트) · [report/06.new_feature.md](report/06.new_feature.md)
