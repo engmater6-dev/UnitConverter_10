@@ -16,6 +16,7 @@
 - [아키텍처](#아키텍처)
 - [테스트 실행](#테스트-실행)
 - [RED 단계 To-Do 리스트](#red-단계-to-do-리스트)
+- [Golden Master 회귀 안전장치](#golden-master-회귀-안전장치)
 - [GREEN 단계 To-Do 리스트](#green-단계-to-do-리스트)
 - [설정 파일 (JSON/YAML)](#설정-파일-jsonyaml)
 - [출력 포맷](#출력-포맷)
@@ -95,7 +96,8 @@ py -3 -m pytest tests/ -v        # 69 passed, 0 failed
 | `tests/entity/` | 20 | passed |
 | `tests/boundary/` | 20 | passed |
 | `tests/data/` | 5 | passed |
-| **합계** | **69** | **69 passed** |
+| `tests/test_golden_master.py` (GM) | 4 | **4 passed** |
+| **합계** | **73** | **73 passed** |
 
 ### 커버리지 (2026-05-21)
 
@@ -346,6 +348,9 @@ py -3 -m pytest tests/entity/ -v
 py -3 -m pytest tests/boundary/ -v
 py -3 -m pytest tests/data/ -v
 
+# Golden Master 회귀 (4 passed)
+py -3 -m pytest -m golden_master -v
+
 # 커버리지 (PRD §4.3)
 py -3 -m pytest tests/ \
   --cov=entity --cov=control --cov=boundary --cov=data \
@@ -400,6 +405,27 @@ py -3 -m pytest tests/ \
 ### 결함 목록 연결
 - [x] [doc/defect_list.md](doc/defect_list.md) 생성 및 발견 결함 기록 (DEF-001~008)
 - [x] 모든 결함 수정 후 회귀 테스트 통과 확인
+
+---
+
+## Golden Master 회귀 안전장치
+
+> Refactoring 시작 전 구축. GREEN 완료 후 즉시 적용.
+
+### 기준 파일 생성
+- [x] GM-01: golden_master_expected.txt 생성 (meter:2.5 기준 출력)
+- [x] GM-02: feet:1.0 / yard:1.0 / meter:0.0 시나리오 추가
+- [x] GM-03: git add tests/golden_master_expected.txt (버전 관리 포함)
+
+### 테스트 코드
+- [x] GM-04: test_golden_master.py + golden_master_expected.txt 작성
+- [x] GM-05: approve 패턴 적용 (파일 없으면 생성, 있으면 비교)
+- [x] GM-06: pytest -m golden_master -v → PASS 확인
+
+### CI 연동
+- [x] GM-07: .github/workflows/golden_master.yml 작성
+- [ ] GM-08: PR 머지 차단 (required status check) 설정 — GitHub **Settings → Branches → Branch protection** 에서 `Golden Master` 체크 필수
+- [ ] GM-09: Refactoring 후 Golden Master 재실행 → PASS 확인
 
 ---
 
